@@ -1,13 +1,13 @@
-# Ghosium Browser 0.0.3 Architecture
+# Ghosium Browser 0.0.4 Architecture
 
 ## Product scope
 
-Ghosium 0.0.3 has two first-class client targets sharing one release identity:
+Ghosium 0.0.4 has two first-class client targets sharing one release identity:
 
 - Windows x64 source-built browser, Setup and Portable distribution;
 - Android 10+ native browser shell using the platform WebView.
 
-Both targets are versioned `0.0.3` and are published from the same Git commit.
+Both targets are versioned `0.0.4` and are published from the same Git commit.
 
 ## Windows source boundary
 
@@ -41,9 +41,9 @@ Android privacy/security configuration blocks third-party cookies, forbids mixed
 
 Windows native update validation enforces the exact first-party HTTPS endpoint, package size/SHA-256, Authenticode publisher and signed PE metadata before Setup execution.
 
-Android 0.0.3 does not introduce an unsigned self-updater. The release APK is signed with the stable Brendigo Android identity, verified with `apksigner`, and its package/version/hash/signer fingerprint are recorded as release evidence.
+Android 0.0.4 does not introduce an unsigned self-updater. The release APK is signed with the stable Brendigo Android identity, verified with `apksigner`, and its package/version/hash/signer fingerprint are recorded as release evidence.
 
-The 0.0.3 orchestrator will not start Windows production release work until Android production signing/build verification has succeeded. The release is considered complete only after the same GitHub release contains Setup, Portable and Android APK.
+The 0.0.4 orchestrator will not start Windows production release work until Android production signing/build verification has succeeded. The release is considered complete only after the same GitHub release contains Setup, Portable and Android APK.
 
 ## Performance model
 

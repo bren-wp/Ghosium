@@ -258,7 +258,6 @@ $portableArguments = @(
   "/DGHOSIUM_STAGE=$stagePath",
   "/DGHOSIUM_ARTIFACTS=$artifactsPath",
   "/DGHOSIUM_ICON=$icon",
-  '/DGHOSIUM_PORTABLE_PROFILE_SWITCH=--user-data-dir',
   $portableNsi
 )
 & $makensis @portableArguments | Out-Host
@@ -382,6 +381,7 @@ $report = [ordered]@{
     adjacentProfileDirectory = 'Ghosium-Portable-Data'
     adjacentRuntimeDirectory = '.ghosium-portable-runtime'
     profileSwitch = '--user-data-dir'
+    launcherProfileSwitch = '--ghosium-portable-profile'
   }
   maintenance = [ordered]@{
     sameSetupExecutable = $true

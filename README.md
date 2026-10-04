@@ -2,11 +2,11 @@
   <img src="engine/branding/ghosium-mark.svg" width="112" alt="Ghosium Browser icon">
 </p>
 
-# Ghosium Browser 0.0.3
+# Ghosium Browser 0.0.4
 
-**Ghosium Browser by Brendigo** is a privacy-focused browser product for **Windows x64** and **Android 10+**. The active product version is **0.0.3**.
+**Ghosium Browser by Brendigo** is a privacy-focused browser product for **Windows x64** and **Android 10+**. The active product version is **0.0.4**.
 
-Version 0.0.3 combines the pinned full-source Windows engine build with a native Android browser shell. Publication is fail-closed: the exact release commit must pass repository contracts, Windows source-build/runtime/package/signing gates and Android unit/lint/minified-release/signing verification before the release is considered complete.
+Version 0.0.4 combines the pinned full-source Windows engine build with a native Android browser shell. Publication is fail-closed: the exact release commit must pass repository contracts, Windows source-build/runtime/package/signing gates and Android unit/lint/minified-release/signing verification before the release is considered complete.
 
 ## Product identity
 
@@ -23,7 +23,7 @@ Version 0.0.3 combines the pinned full-source Windows engine build with a native
 - Privacy: `https://ghosium.com/legal/privacy-policy`
 - Default external web search provider: Google Search
 
-## Windows 0.0.3
+## Windows 0.0.4
 
 The Windows product is compiled from the exact pinned upstream engine revision in `ENGINE_SOURCE_REVISION`. Ghosium source transforms apply product identity, `ghost://` internal routes, New Tab behavior, privacy defaults, update integration and native performance defaults while preserving sandboxing, site/process isolation, Safe Browsing and TLS/certificate validation.
 
@@ -38,7 +38,7 @@ The documented Ghosium internal route contract is:
 - `ghost://extensions/`
 - `ghost://passwords/`
 
-0.0.3 also hardens the compatibility/Portable layer:
+0.0.4 also hardens the compatibility/Portable layer:
 
 - installed profile root is `%LOCALAPPDATA%\Brendigo\Ghosium\User Data`;
 - Portable uses a private launcher profile contract and stores data beside the Portable executable;
@@ -47,7 +47,7 @@ The documented Ghosium internal route contract is:
 - protected engine arguments cannot override the Ghosium profile, extension, language or security contract;
 - noninteractive QA/headless launch paths fail with exit codes rather than modal dialogs.
 
-## Android 0.0.3
+## Android 0.0.4
 
 The Android application lives in `android/` and uses the platform WebView inside a Ghosium-owned native shell. It provides URL/search entry, Back/Forward/Home/Reload, local New Tab, download handling, file chooser, fullscreen media, Desktop Site, Find in Page, Share, clear-browsing-data controls, state restoration and renderer recovery.
 
@@ -55,7 +55,7 @@ Privacy/security defaults include blocked third-party cookies, mixed-content blo
 
 ## Release assets
 
-A complete 0.0.3 production release must contain at least:
+A complete 0.0.4 production release must contain at least:
 
 ```text
 Ghosium-Browser-Setup.exe
@@ -63,14 +63,14 @@ Ghosium-Browser-Portable.exe
 Ghosium-Browser-Android.apk
 ```
 
-The Windows packages must be produced by the canonical full-source workflow and pass Authenticode/provenance/lifecycle gates. The Android APK must be minified, signed with the stable Brendigo Android release identity, verified with `apksigner`, bound to `com.brendigo.ghosium` version `0.0.3`, and accompanied by Android provenance evidence.
+The Windows packages must be produced by the canonical full-source workflow and pass Authenticode/provenance/lifecycle gates. The Android APK must be minified, signed with the stable Brendigo Android release identity, verified with `apksigner`, bound to `com.brendigo.ghosium` version `0.0.4`, and accompanied by Android provenance evidence.
 
 ## Development and verification
 
 - Windows full-source build: `.github/workflows/full-source-windows-build.yml`
-- Cross-platform 0.0.3 QA: `.github/workflows/ghosium-0.0.3-quality.yml`
-- Android release-candidate QA: `.github/workflows/ghosium-0.0.3-android-release-candidate.yml`
-- Production 0.0.3 orchestration: `.github/workflows/ghosium-0.0.3-production-release.yml`
+- Cross-platform 0.0.4 QA: `.github/workflows/ghosium-0.0.4-quality.yml`
+- Android release-candidate QA: `.github/workflows/ghosium-0.0.4-android-release-candidate.yml`
+- Production 0.0.4 orchestration: `.github/workflows/ghosium-0.0.4-production-release.yml`
 - Windows build documentation: `BUILDING.md`
 - Android documentation: `android/README.md`
 - Release procedure: `docs/RELEASE.md`

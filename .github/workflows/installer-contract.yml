@@ -314,6 +314,36 @@ jobs:
               raise SystemExit('Canonical source-release packager is missing:\n' + '\n'.join(missing))
           print('Canonical public Setup identity/signing contract: OK')
 
+      - name: Verify canonical Portable profile handoff
+        shell: python
+        run: |
+          from pathlib import Path
+
+          portable = Path('installer/ghosium-portable.nsi').read_text(encoding='utf-8')
+          packager = Path('scripts/build-source-release-installer.ps1').read_text(encoding='utf-8')
+          fixture = Path('scripts/smoke-test-installer-contract-fixture.ps1').read_text(encoding='utf-8')
+
+          if '!define GHOSIUM_PORTABLE_PROFILE_SWITCH "--ghosium-portable-profile"' not in portable:
+              raise SystemExit('Portable wrapper lost the private launcher profile switch.')
+          if '/DGHOSIUM_PORTABLE_PROFILE_SWITCH=--user-data-dir' in packager:
+              raise SystemExit('Canonical production packaging must not bypass the hardened launcher profile contract.')
+          if '/DGHOSIUM_PORTABLE_PROFILE_SWITCH=--user-data-dir' in fixture:
+              raise SystemExit('Installer fixture must exercise the same private Portable profile handoff as production.')
+          for token in (
+              'launcherProfileSwitch = \'--ghosium-portable-profile\'',
+              'profileSwitch = \'--user-data-dir\'',
+          ):
+              if token not in packager:
+                  raise SystemExit(f'Canonical Portable provenance is missing: {token}')
+          for token in (
+              'portable-fixture-args.txt',
+              '--ghosium-portable-profile=$portableProfile',
+              'Portable private profile contract must be appended after caller arguments.',
+          ):
+              if token not in fixture:
+                  raise SystemExit(f'Portable runtime regression coverage is missing: {token}')
+          print('Canonical Portable private-profile handoff: OK')
+
       - name: Verify canonical browser-equivalent update smoke
         shell: python
         run: |

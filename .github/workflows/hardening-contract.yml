@@ -206,7 +206,7 @@ jobs:
           manifest = Path('scripts/generate-update-manifest.ps1').read_text(encoding='utf-8')
           for required in (
               '$allowedProductVersions = @($Version, "$Version.0")',
-              "[IO.File]::GetRandomFileName()",
+              "[IO.Path]::GetRandomFileName()",
               '[IO.File]::Move($tempOutput, $outputFullPath, $true)',
               'Assert-ManifestContent -Path $tempOutput',
               'Assert-ManifestContent -Path $outputFullPath',

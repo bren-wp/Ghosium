@@ -53,6 +53,7 @@ try {
   $source = @"
 using System;
 using System.Reflection;
+using System.IO;
 [assembly: AssemblyTitle("Ghosium Browser")]
 [assembly: AssemblyProduct("Ghosium Browser")]
 [assembly: AssemblyCompany("Brendigo")]
@@ -61,6 +62,8 @@ using System.Reflection;
 [assembly: AssemblyFileVersion("$assemblyVersion")]
 public static class Program {
   public static int Main(string[] args) {
+    var argsPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "portable-fixture-args.txt");
+    File.WriteAllLines(argsPath, args);
     Console.WriteLine("<html><body>ghosium-canonical-installed-runtime-ok</body></html>");
     return 0;
   }
@@ -114,7 +117,7 @@ public static class Program {
   }
 
   $portablePath = Join-Path $artifacts 'Ghosium-Browser-Portable.exe'
-  & $makensis "/DGHOSIUM_VERSION=$version" "/DGHOSIUM_STAGE=$stage" "/DGHOSIUM_ARTIFACTS=$artifacts" "/DGHOSIUM_ICON=$icon" '/DGHOSIUM_PORTABLE_PROFILE_SWITCH=--user-data-dir' $portableNsi | Out-Host
+  & $makensis "/DGHOSIUM_VERSION=$version" "/DGHOSIUM_STAGE=$stage" "/DGHOSIUM_ARTIFACTS=$artifacts" "/DGHOSIUM_ICON=$icon" $portableNsi | Out-Host
   if ($LASTEXITCODE -ne 0 -or !(Test-Path $portablePath -PathType Leaf) -or (Get-Item $portablePath).Length -le 0) {
     throw 'Ghosium Portable contract compilation failed.'
   }
@@ -159,8 +162,9 @@ public static class Program {
   }
 
   # Execute the real Portable wrapper as well. Use a caller-supplied profile
-  # switch intentionally; ghosium-portable.nsi appends its fixed adjacent
-  # --user-data-dir last and prepares that directory before launching runtime.
+  # switch intentionally; ghosium-portable.nsi appends its private adjacent
+  # --ghosium-portable-profile switch last. The hardened launcher consumes it
+  # and owns the final engine --user-data-dir.
   $portableWork = Join-Path $work 'portable-run'
   New-Item -ItemType Directory -Force -Path $portableWork | Out-Null
   $portableRun = Join-Path $portableWork 'Ghosium-Browser-Portable.exe'
@@ -195,6 +199,23 @@ public static class Program {
     throw 'Portable adjacent profile directory was not created.'
   }
 
+  $portableArgsFile = Join-Path $portableRuntime 'portable-fixture-args.txt'
+  if (!(Test-Path $portableArgsFile -PathType Leaf)) {
+    throw 'Portable runtime did not record its received launcher arguments.'
+  }
+  $portableArgs = @(Get-Content $portableArgsFile)
+  $expectedPrivateProfile = "--ghosium-portable-profile=$portableProfile"
+  $callerProfileArg = "--user-data-dir=$callerProfile"
+  if ($portableArgs -notcontains $expectedPrivateProfile) {
+    throw "Portable wrapper did not append the private adjacent profile contract: $expectedPrivateProfile"
+  }
+  if ($portableArgs -notcontains $callerProfileArg) {
+    throw 'Portable fixture lost the caller-supplied profile argument needed to verify ordering.'
+  }
+  if ([Array]::IndexOf($portableArgs, $expectedPrivateProfile) -le [Array]::IndexOf($portableArgs, $callerProfileArg)) {
+    throw 'Portable private profile contract must be appended after caller arguments.'
+  }
+
   $uninstallRegistration = Get-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\GhosiumBrowser' -ErrorAction SilentlyContinue
   if ($null -ne $uninstallRegistration) {
     throw 'Portable mode created an uninstall registration entry.'
@@ -216,7 +237,7 @@ public static class Program {
     legalPayload = $true
     uninstallRegistration = $false
     desktopShortcut = $false
-    fixedProfileSwitch = '--user-data-dir'
+    fixedProfileSwitch = '--ghosium-portable-profile'
   }
   $portableEvidence | ConvertTo-Json -Depth 5 | Set-Content $portableReport -Encoding utf8
 
