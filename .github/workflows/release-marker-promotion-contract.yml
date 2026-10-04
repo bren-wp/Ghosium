@@ -17,7 +17,7 @@ jobs:
   release-marker-promotion:
     name: Verify release-marker-only promotion and candidate evidence
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 360
     steps:
       - name: Checkout
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
@@ -96,7 +96,7 @@ jobs:
               'GHOSIUM-PERFORMANCE.json', 'GHOSIUM-PUBLIC-SETUP.json',
               'GHOSIUM-CANONICAL-SETUP-SMOKE.json', 'SHA256SUMS.txt',
               'sha256sum -c SHA256SUMS.txt', 'publicSetupIsChromiumMiniInstallerRename',
-              'sameSetupExecutable',
+              'sameSetupExecutable', 'Waiting for exact full-source candidate', 'Timed out waiting for a completed/success full-source candidate run',
           ):
               if required not in promotion:
                   raise SystemExit(f'Release promotion workflow invariant missing: {required}')
@@ -124,9 +124,31 @@ jobs:
             exit 1
           fi
 
-          runs_json="$(gh api --method GET "/repos/${GITHUB_REPOSITORY}/actions/workflows/full-source-windows-build.yml/runs" -f branch="$HEAD_REF" -f event='workflow_dispatch' -f per_page='100')"
-          run_id="$(jq -r --arg sha "$CANDIDATE_SHA" '[.workflow_runs[] | select(.head_sha == $sha) | select(.event == "workflow_dispatch") | select(.status == "completed") | select(.conclusion == "success")] | sort_by(.created_at) | last | .id // empty' <<< "$runs_json")"
-          [[ -n "$run_id" ]] || { echo "No completed/success full-source candidate run exists for exact head $CANDIDATE_SHA." >&2; exit 1; }
+          deadline=$((SECONDS + 19800))
+          run_id=""
+          while (( SECONDS < deadline )); do
+            runs_json="$(gh api --method GET "/repos/${GITHUB_REPOSITORY}/actions/workflows/full-source-windows-build.yml/runs" -f branch="$HEAD_REF" -f event='workflow_dispatch' -f per_page='100')"
+            exact_runs="$(jq -c --arg sha "$CANDIDATE_SHA" '[.workflow_runs[] | select(.head_sha == $sha) | select(.event == "workflow_dispatch")] | sort_by(.created_at)' <<< "$runs_json")"
+            run_id="$(jq -r '[.[] | select(.status == "completed") | select(.conclusion == "success")] | last | .id // empty' <<< "$exact_runs")"
+            if [[ -n "$run_id" ]]; then
+              break
+            fi
+
+            terminal="$(jq -r '[.[] | select(.status == "completed") | select(.conclusion != "success")] | last | [.id, .conclusion] | @tsv // empty' <<< "$exact_runs")"
+            if [[ -n "$terminal" ]]; then
+              echo "Exact full-source candidate ended unsuccessfully: $terminal" >&2
+              exit 1
+            fi
+
+            active="$(jq -r '[.[] | select(.status == "queued" or .status == "in_progress" or .status == "waiting" or .status == "pending")] | last | [.id, .status] | @tsv // empty' <<< "$exact_runs")"
+            if [[ -n "$active" ]]; then
+              echo "Waiting for exact full-source candidate: $active"
+            else
+              echo "Waiting for exact full-source candidate run for $CANDIDATE_SHA to appear."
+            fi
+            sleep 30
+          done
+          [[ -n "$run_id" ]] || { echo "Timed out waiting for a completed/success full-source candidate run for exact head $CANDIDATE_SHA." >&2; exit 1; }
 
           artifact_name="ghosium-full-source-windows-x64-${GHOSIUM_VERSION}"
           artifacts_json="$(gh api --method GET "/repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}/artifacts" -f per_page='100')"
