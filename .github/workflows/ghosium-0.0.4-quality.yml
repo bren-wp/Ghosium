@@ -137,7 +137,7 @@ jobs:
           apk='android/app/build/outputs/apk/debug/app-debug.apk'
           test -s "$apk"
           "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --verbose --print-certs "$apk"
-          "$ANDROID_HOME/build-tools/36.0.0/aapt" dump badging "$apk" | grep -F "package: name='com.brendigo.ghosium.debug' versionCode='3' versionName='0.0.4-debug'"
+          "$ANDROID_HOME/build-tools/36.0.0/aapt" dump badging "$apk" | grep -F "package: name='com.brendigo.ghosium.debug' versionCode='4' versionName='0.0.4-debug'"
       - name: Upload Android QA APK
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
