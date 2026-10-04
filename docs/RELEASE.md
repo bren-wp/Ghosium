@@ -1,10 +1,10 @@
-# Ghosium 0.0.4 Release Procedure
+# Ghosium 0.0.5 Release Procedure
 
-The active product version is `0.0.4`.
+The active product version is `0.0.5`.
 
 ## Release state
 
-Ghosium Browser 0.0.4 is a release candidate until every exact-commit candidate, signing, provenance and publication gate below succeeds. The checked-in Windows stable update baseline remains fail-closed before publication.
+Ghosium Browser 0.0.5 is a release candidate until every exact-commit candidate, signing, provenance and publication gate below succeeds. The checked-in Windows stable update baseline remains fail-closed before publication.
 
 ## Canonical scope
 
@@ -20,7 +20,7 @@ The Windows packages come only from the canonical full-source build. The Android
 
 ## Phase 1 — version baseline
 
-1. Review the 0.0.4 code, Android application, workflows and documentation on the version-advance branch.
+1. Review the 0.0.5 code, Android application, workflows and documentation on the version-advance branch.
 2. Require normal PR contracts plus cross-platform QA to pass for the exact head SHA.
 3. Require the Android release-candidate workflow to prove unit tests, release lint, minification and release assembly without using production private-key material.
 4. Merge the version baseline into `main` only after those gates are green.
@@ -29,17 +29,19 @@ The version-baseline PR must not contain the production release marker.
 
 ## Phase 2 — exact candidate and marker promotion
 
-1. Create `ghosium/release/0.0.4` from the exact approved `main` baseline.
-2. Add exactly `.release/ghosium-v0.0.4.request` containing exactly `ghosium-v0.0.4`.
+1. Create `ghosium/release/0.0.5` from the exact approved `main` baseline.
+2. Add exactly `.release/ghosium-v0.0.5.request` containing exactly `ghosium-v0.0.5`.
 3. Run the full-source Windows candidate workflow against that exact release-branch SHA.
 4. Require successful compile, runtime, benchmark, Setup/Portable, source/provenance and SHA-256 evidence.
-5. Open a marker-only PR from `ghosium/release/0.0.4` to `main`.
+5. Open a marker-only PR from `ghosium/release/0.0.5` to `main`.
 6. Require the release-marker promotion contract to bind that exact candidate evidence to the marker PR.
 7. Merge the marker-only PR only after the promotion contract succeeds.
 
 ## Phase 3 — production
 
-The marker push to `main` triggers `.github/workflows/ghosium-0.0.4-production-release.yml`.
+The marker push to `main` triggers `.github/workflows/ghosium-0.0.5-production-release.yml`.
+
+Before production work can use the self-hosted Windows builder, `full-source-windows-build.yml` independently verifies that `main` contains exactly one marker and that it is `.release/ghosium-v0.0.5.request` with exact content `ghosium-v0.0.5`. The release-safety supervisor cancels main full-source runs that do not satisfy this source-commit marker contract.
 
 Production order is fail-closed:
 
@@ -67,4 +69,4 @@ A missing signing identity is a release blocker; signing checks must not be weak
 
 ## Release decision
 
-Canonical 0.0.4 publication is allowed only after exact candidate evidence, marker promotion, Android production signing and canonical Windows production signing/provenance all succeed. Publication is GitHub-only unless a separately reviewed change establishes another release destination.
+Canonical 0.0.5 publication is allowed only after exact candidate evidence, marker promotion, Android production signing and canonical Windows production signing/provenance all succeed. Publication is GitHub-only unless a separately reviewed change establishes another release destination.

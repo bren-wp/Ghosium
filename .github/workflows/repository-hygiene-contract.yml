@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   repository-hygiene:
-    name: Verify clean 0.0.1 baseline and fail-closed repository state
+    name: Verify active fail-closed repository state
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -30,6 +30,7 @@ jobs:
               Path('.github/workflows/search-web-contract.yml'),
               Path('.github/workflows/windows-build.yml'),
               Path('.github/workflows/production-release-dispatch.yml'),
+              Path('.github/workflows/ghosium-0.0.2-release-trigger.yml'),
           ):
               if path.exists():
                   raise SystemExit(f'Retired path returned: {path}')
@@ -90,9 +91,13 @@ jobs:
           for required in ("'ghosium/release/**'", "'.release/*.request'", 'expected_ref="refs/heads/ghosium/release/${version}"', 'Exactly one active Ghosium release request marker is required'):
               if required not in dispatcher:
                   raise SystemExit(f'Candidate dispatcher invariant missing: {required}')
-          for required in ('ghosium-source-builder', '$params.RequireSigning = $true', "if: github.ref == 'refs/heads/main'", 'GHOSIUM-PUBLIC-SETUP.json', 'GHOSIUM-UPDATE-MANIFEST.json', 'SHA256SUMS.txt'):
+          for required in ('ghosium-source-builder', '$params.RequireSigning = $true', "if: github.ref == 'refs/heads/main'", 'GHOSIUM-PUBLIC-SETUP.json', 'GHOSIUM-UPDATE-MANIFEST.json', 'SHA256SUMS.txt', 'Production main requires exactly one active release marker'):
               if required not in full_source:
                   raise SystemExit(f'Canonical full-source invariant missing: {required}')
+          supervisor = Path('.github/workflows/release-safety-supervisor.yml').read_text(encoding='utf-8')
+          for required in ('actions: write', 'full-source-windows-build.yml', '/cancel', 'ghosium-v'):
+              if required not in supervisor:
+                  raise SystemExit(f'Release-safety supervisor invariant missing: {required}')
 
       - name: Verify repository formatting
         shell: bash

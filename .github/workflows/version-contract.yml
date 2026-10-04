@@ -133,6 +133,9 @@ jobs:
           from pathlib import Path
           text = Path('.github/workflows/full-source-windows-build.yml').read_text(encoding='utf-8')
           promotion = Path('.github/workflows/release-marker-promotion-contract.yml').read_text(encoding='utf-8')
+          supervisor = Path('.github/workflows/release-safety-supervisor.yml').read_text(encoding='utf-8')
+          if Path('.github/workflows/ghosium-0.0.2-release-trigger.yml').exists():
+              raise SystemExit('Retired 0.0.2 production dispatcher must not exist.')
           for forbidden in ('storage.googleapis.com/chromium-browser-snapshots', 'chrome-win.zip'):
               if forbidden in text:
                   raise SystemExit(f'Precompiled snapshot input returned: {forbidden}')
@@ -144,12 +147,18 @@ jobs:
               '-RunRuntimeSmoke', './scripts/build-source-release-installer.ps1',
               './scripts/smoke-test-windows-installer.ps1', '-RequireAuthenticode',
               '$params.RequireSigning = $true', "if: github.ref == 'refs/heads/main'",
+              "if os.environ.get('GITHUB_REF') == 'refs/heads/main':",
+              "marker = Path(f'.release/{tag}.request')",
+              "Production main requires exactly one active release marker",
           ):
               if required not in text:
                   raise SystemExit(f'Full-source release invariant missing: {required}')
           for required in ('actions: read', 'release-marker-only', 'full-source-windows-build.yml', 'SHA256SUMS.txt'):
               if required not in promotion:
                   raise SystemExit(f'Release-promotion invariant missing: {required}')
+          for required in ('actions: write', 'full-source-windows-build.yml', '/cancel', 'ghosium-v'):
+              if required not in supervisor:
+                  raise SystemExit(f'Release-safety supervisor invariant missing: {required}')
 
       - name: Verify immutable action references
         shell: python
