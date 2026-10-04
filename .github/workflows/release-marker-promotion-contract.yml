@@ -134,13 +134,13 @@ jobs:
               break
             fi
 
-            terminal="$(jq -r '[.[] | select(.status == "completed") | select(.conclusion != "success")] | last | [.id, .conclusion] | @tsv // empty' <<< "$exact_runs")"
+            terminal="$(jq -r '[.[] | select(.status == "completed" and .conclusion != "success")] | if length > 0 then (last | [.id, .conclusion] | @tsv) else empty end' <<< "$exact_runs")"
             if [[ -n "$terminal" ]]; then
               echo "Exact full-source candidate ended unsuccessfully: $terminal" >&2
               exit 1
             fi
 
-            active="$(jq -r '[.[] | select(.status == "queued" or .status == "in_progress" or .status == "waiting" or .status == "pending")] | last | [.id, .status] | @tsv // empty' <<< "$exact_runs")"
+            active="$(jq -r '[.[] | select(.status == "queued" or .status == "in_progress" or .status == "waiting" or .status == "pending")] | if length > 0 then (last | [.id, .status] | @tsv) else empty end' <<< "$exact_runs")"
             if [[ -n "$active" ]]; then
               echo "Waiting for exact full-source candidate: $active"
             else
