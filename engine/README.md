@@ -1,6 +1,6 @@
 # Ghosium source-engine integration
 
-The active product baseline is **0.0.6**.
+The active product baseline is **0.0.7**.
 
 This directory contains Ghosium-owned source transforms, brand assets, localization, Windows identity and deterministic build configuration for the exact Chromium source revision in `ENGINE_SOURCE_REVISION`.
 
@@ -10,7 +10,7 @@ Ghosium owns the Windows product layer: Ghosium Browser/Brendigo identity, artwo
 
 Technical Chromium/GN symbols may remain where required by the build graph. Required third-party attribution is legal material and is not relabeled as Ghosium.
 
-## 0.0.6 privacy and performance
+## 0.0.7 privacy and performance
 
 Windows source transforms preserve stronger defaults for third-party cookies, search suggestions, speculative network prediction/preloading, remote alternate-error pages and online spelling upload. Remote provider-owned New Tab promotion/Doodle paths covered by the source contract remain disabled.
 
