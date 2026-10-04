@@ -1,8 +1,8 @@
-# Building Ghosium Browser 0.0.4
+# Building Ghosium Browser 0.0.5
 
 ## Release baseline
 
-The active product version is `0.0.4`. Windows and Android artifacts in one production release must come from the exact same Git commit.
+The active product version is `0.0.5`. Windows and Android artifacts in one production release must come from the exact same Git commit.
 
 ## Windows canonical build
 
@@ -23,8 +23,8 @@ applicationId  com.brendigo.ghosium
 minSdk         29
 compileSdk     36
 targetSdk      36
-versionCode    4
-versionName    0.0.4
+versionCode    5
+versionName    0.0.5
 JDK            17
 Gradle         8.13
 ```
@@ -37,7 +37,7 @@ Typical local verification with equivalent tools:
 gradle --no-daemon -p android testDebugUnitTest lintDebug lintRelease assembleDebug assembleRelease
 ```
 
-The project treats lint warnings as errors except the narrowly documented dependency-version check and `OldTargetApi`. API 37 was not promoted into 0.0.4 because the stable GitHub-hosted SDK channel used by the release pipeline did not expose `platforms;android-37`; the product remains on stable API 36 rather than depending on a preview SDK.
+The project treats lint warnings as errors except the narrowly documented dependency-version check and `OldTargetApi`. API 37 was not promoted into 0.0.5 because the stable GitHub-hosted SDK channel used by the release pipeline did not expose `platforms;android-37`; the product remains on stable API 36 rather than depending on a preview SDK.
 
 ## Android production signing
 
@@ -56,14 +56,16 @@ The production workflow decodes the keystore only into the ephemeral runner, ver
 
 ## Production orchestration
 
-`.github/workflows/ghosium-0.0.4-production-release.yml` is triggered by the exact main-branch marker `.release/ghosium-v0.0.4.request`.
+`.github/workflows/ghosium-0.0.5-production-release.yml` is triggered by the exact main-branch marker `.release/ghosium-v0.0.5.request`.
+
+A production `main` full-source dispatch is rejected before the Windows builder is allocated unless the exact single promoted marker for VERSION exists. The release-safety supervisor also cancels queued or running main full-source requests whose source commit lacks that exact marker.
 
 Release order is intentionally fail-closed:
 
 1. validate version + marker;
-2. build/test/lint/minify/sign/verify Android 0.0.4;
+2. build/test/lint/minify/sign/verify Android 0.0.5;
 3. upload Android provenance artifact;
-4. verify that `ghosium-v0.0.4` does not already exist;
+4. verify that `ghosium-v0.0.5` does not already exist;
 5. dispatch the canonical full-source Windows production workflow on the exact `main` SHA;
 6. require the complete Windows build/signing/publish workflow to succeed;
 7. attach the previously verified Android APK to that immutable release;
