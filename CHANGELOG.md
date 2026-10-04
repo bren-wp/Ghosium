@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.0.6 — Windows + Android release candidate
+## 0.0.7 — Windows + Android release candidate
 
 ### Windows
 
@@ -15,7 +15,7 @@
 - Avoided re-extracting the full Portable runtime on every launch.
 - Added recovery for interrupted/stale Portable preparation and concurrent extraction races.
 - Hardened launcher noninteractive behavior so QA/headless failures return an exit code instead of blocking on a modal dialog.
-- Added C++20 launcher compilation/self-test and Setup/Portable package execution coverage to the 0.0.6 quality gate.
+- Added C++20 launcher compilation/self-test and Setup/Portable package execution coverage to the 0.0.7 quality gate.
 - Fixed canonical NSIS invocation to use absolute script paths, eliminating the historical duplicated installer asset-path workaround.
 
 ### Android
@@ -32,12 +32,15 @@
 
 ### Release engineering and documentation
 
+- Added bounded Chromium bootstrap process execution with explicit timeouts, process-tree termination and heartbeat logging so hosted source builds fail deterministically instead of hanging indefinitely.
+- Extended the source-builder contract to enforce bootstrap timeout and heartbeat invariants.
+
 - Fixed the release-marker promotion race condition so exact-SHA Windows candidates are awaited instead of producing a false CI failure while still running.
 
-- Synchronized Ghosium Privacy Store metadata with product version 0.0.6.
+- Synchronized Ghosium Privacy Store metadata with product version 0.0.7.
 - Added a production orchestrator that requires a stable signed Android APK before dispatching the canonical signed Windows full-source release.
 - Added Android release provenance and final three-asset release verification.
 - Added an unsigned Android release-candidate gate that proves lint/minification/release assembly without exposing the production private key.
-- Updated README, release procedure, architecture, build, privacy, security, performance, contribution and engine documentation for 0.0.6.
+- Updated README, release procedure, architecture, build, privacy, security, performance, contribution and engine documentation for 0.0.7.
 
-> Publication is complete only when the immutable `ghosium-v0.0.6` release contains verified Setup, Portable and Android APK assets for the exact release commit.
+> Publication is complete only when the immutable `ghosium-v0.0.7` release contains verified Setup, Portable and Android APK assets for the exact release commit.

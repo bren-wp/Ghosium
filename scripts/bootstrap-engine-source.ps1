@@ -12,6 +12,66 @@ param(
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 
+function Invoke-GhosiumBoundedProcess {
+  param(
+    [Parameter(Mandatory = $true)]
+    [string]$Command,
+
+    [Parameter(Mandatory = $true)]
+    [string[]]$Arguments,
+
+    [Parameter(Mandatory = $true)]
+    [string]$WorkingDirectory,
+
+    [Parameter(Mandatory = $true)]
+    [ValidateRange(30, 7200)]
+    [int]$TimeoutSeconds,
+
+    [Parameter(Mandatory = $true)]
+    [string]$Description
+  )
+
+  $stdoutPath = Join-Path $env:RUNNER_TEMP ("ghosium-" + [guid]::NewGuid().ToString('N') + ".stdout.log")
+  $stderrPath = Join-Path $env:RUNNER_TEMP ("ghosium-" + [guid]::NewGuid().ToString('N') + ".stderr.log")
+  Write-Host "$Description (timeout: $TimeoutSeconds seconds)"
+  $process = Start-Process -FilePath $Command -ArgumentList $Arguments -WorkingDirectory $WorkingDirectory -NoNewWindow -PassThru -RedirectStandardOutput $stdoutPath -RedirectStandardError $stderrPath
+  $deadline = [DateTime]::UtcNow.AddSeconds($TimeoutSeconds)
+
+  try {
+    while (!$process.HasExited) {
+      if ([DateTime]::UtcNow -ge $deadline) {
+        Write-Error "$Description exceeded its $TimeoutSeconds second timeout. Terminating process tree PID $($process.Id)."
+        & "$env:SystemRoot\System32\taskkill.exe" /PID $process.Id /T /F | Out-Host
+        $process.WaitForExit()
+        throw "$Description timed out after $TimeoutSeconds seconds."
+      }
+
+      Start-Sleep -Seconds 30
+      $process.Refresh()
+      if (!$process.HasExited) {
+        Write-Host "$Description still running (PID $($process.Id))..."
+      }
+    }
+
+    if (Test-Path $stdoutPath -PathType Leaf) {
+      Get-Content $stdoutPath | Out-Host
+    }
+    if (Test-Path $stderrPath -PathType Leaf) {
+      Get-Content $stderrPath | ForEach-Object { Write-Host $_ }
+    }
+
+    if ($process.ExitCode -ne 0) {
+      throw "$Description failed with exit code $($process.ExitCode)."
+    }
+  } finally {
+    Remove-Item $stdoutPath,$stderrPath -Force -ErrorAction SilentlyContinue
+    if (!$process.HasExited) {
+      & "$env:SystemRoot\System32\taskkill.exe" /PID $process.Id /T /F 2>$null | Out-Null
+    }
+    $process.Dispose()
+  }
+}
+
 $repoRoot = Split-Path -Parent $PSScriptRoot
 $sourceRevision = (Get-Content (Join-Path $repoRoot 'ENGINE_SOURCE_REVISION') -Raw).Trim()
 if ($sourceRevision -notmatch '^[0-9a-f]{40}$') {
@@ -99,10 +159,12 @@ if ($reuseCheckout) {
   Push-Location $destinationPath
   try {
     Write-Host "Fetching Chromium source for Ghosium into $destinationPath"
-    & $fetchCommand.Source --nohooks --no-history chromium
-    if ($LASTEXITCODE -ne 0) {
-      throw "Chromium fetch failed with exit code $LASTEXITCODE"
-    }
+    Invoke-GhosiumBoundedProcess `
+      -Command $fetchCommand.Source `
+      -Arguments @('--nohooks', '--no-history', 'chromium') `
+      -WorkingDirectory $destinationPath `
+      -TimeoutSeconds 1800 `
+      -Description 'Initial Chromium source fetch'
   } finally {
     Pop-Location
   }
@@ -115,15 +177,21 @@ if ($reuseCheckout) {
 $fetchSucceeded = $false
 $fetchAttempts = 3
 for ($attempt = 1; $attempt -le $fetchAttempts; $attempt++) {
-  & git -C $src fetch origin $sourceRevision --no-tags
-  if ($LASTEXITCODE -eq 0) {
+  try {
+    Invoke-GhosiumBoundedProcess `
+      -Command (Get-Command git.exe -ErrorAction Stop).Source `
+      -Arguments @('-C', $src, 'fetch', 'origin', $sourceRevision, '--no-tags') `
+      -WorkingDirectory $destinationPath `
+      -TimeoutSeconds 900 `
+      -Description "Pinned Chromium revision fetch attempt $attempt/$fetchAttempts"
     $fetchSucceeded = $true
     break
-  }
-
-  if ($attempt -lt $fetchAttempts) {
+  } catch {
+    if ($attempt -ge $fetchAttempts) {
+      throw
+    }
     $retryDelaySeconds = 15 * $attempt
-    Write-Warning "Pinned Chromium fetch attempt $attempt/$fetchAttempts failed; retrying the exact revision in $retryDelaySeconds seconds."
+    Write-Warning "Pinned Chromium fetch attempt $attempt/$fetchAttempts failed: $($_.Exception.Message). Retrying in $retryDelaySeconds seconds."
     Start-Sleep -Seconds $retryDelaySeconds
   }
 }
@@ -159,16 +227,20 @@ try {
   if ($SkipHooks) {
     $syncArguments += '--nohooks'
   }
-  & $gclientCommand.Source @syncArguments
-  if ($LASTEXITCODE -ne 0) {
-    throw "gclient sync failed with exit code $LASTEXITCODE"
-  }
+  Invoke-GhosiumBoundedProcess `
+    -Command $gclientCommand.Source `
+    -Arguments $syncArguments `
+    -WorkingDirectory $destinationPath `
+    -TimeoutSeconds 1800 `
+    -Description 'Pinned Chromium gclient sync'
 
   if (!$SkipHooks) {
-    & $gclientCommand.Source runhooks
-    if ($LASTEXITCODE -ne 0) {
-      throw "gclient runhooks failed with exit code $LASTEXITCODE"
-    }
+    Invoke-GhosiumBoundedProcess `
+      -Command $gclientCommand.Source `
+      -Arguments @('runhooks') `
+      -WorkingDirectory $destinationPath `
+      -TimeoutSeconds 1200 `
+      -Description 'Pinned Chromium gclient runhooks'
   }
 } finally {
   Pop-Location
