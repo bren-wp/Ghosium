@@ -67,6 +67,21 @@ jobs:
               raise SystemExit('Production release requires THIRD_PARTY_NOTICES.md.')
 
           tag = f'ghosium-v{version}'
+
+          # Production builds on main are release actions, not generic build
+          # requests. Require the exact single promoted marker before allocating
+          # the self-hosted Windows builder or touching signing/publication.
+          if os.environ.get('GITHUB_REF') == 'refs/heads/main':
+              marker = Path(f'.release/{tag}.request')
+              markers = sorted(Path('.release').glob('ghosium-v*.request'))
+              if markers != [marker]:
+                  raise SystemExit(
+                      f'Production main requires exactly one active release marker {marker}; '
+                      f'found {[p.as_posix() for p in markers]}'
+                  )
+              if marker.read_text(encoding='utf-8').strip() != tag:
+                  raise SystemExit(f'Production release marker content mismatch for {marker}.')
+
           output = Path(os.environ['GITHUB_OUTPUT'])
           with output.open('a', encoding='utf-8') as handle:
               handle.write(f'version={version}\n')
