@@ -235,7 +235,17 @@ jobs:
             '[IO.Path]::IsPathFullyQualified($Destination)',
             '[IO.Path]::GetFullPath($Destination)',
             "[IO.Path]::GetFullPath((Join-Path (Get-Location).Path `$Destination))",
-            'git -C $src clean -ffd'
+            'git -C $src clean -ffd',
+            'function Invoke-GhosiumBoundedProcess',
+            'Initial Chromium source fetch',
+            "TimeoutSeconds 1800",
+            'Pinned Chromium revision fetch attempt',
+            "TimeoutSeconds 900",
+            'Pinned Chromium gclient sync',
+            'Pinned Chromium gclient runhooks',
+            "TimeoutSeconds 1200",
+            'still running (PID',
+            'taskkill.exe'
           )) {
             if (!$bootstrap.Contains($required)) {
               throw "Chromium bootstrap is missing absolute/relative workspace guard: $required"
