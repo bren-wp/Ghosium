@@ -6,7 +6,7 @@
 
 - Added a fail-closed production marker guard to the canonical full-source Windows workflow before self-hosted builder allocation, signing or publication.
 - Added a release-safety supervisor that cancels queued/in-progress main full-source runs whose source commit does not contain its exact promoted release marker.
-- Retired the obsolete 0.0.2 production dispatcher that could fire when its old marker was deleted and prematurely dispatch the current VERSION on main.
+- Retired the obsolete historical production dispatcher that could fire when its old marker was deleted and prematurely dispatch the current VERSION on main.
 - Fixed the canonical production Portable packager so it preserves the private `--ghosium-portable-profile` launcher handoff instead of compiling the wrapper with a filtered public `--user-data-dir` override.
 - Hardened the installer contract fixture to record Portable runtime arguments and verify that the adjacent private profile switch is appended after caller-supplied arguments.
 - Unified the installed profile contract at `%LOCALAPPDATA%\Brendigo\Ghosium\User Data`.
