@@ -2,49 +2,24 @@
 
 ## Scope
 
-This document covers privacy behavior controlled by Ghosium Browser on Windows and Android and by Ghosium-controlled product services. Google Search and websites opened by the user are external services.
+This document covers privacy behavior controlled by Ghosium Browser on Windows and Android. Search providers and visited websites are external services.
 
-## Product-wide defaults
+## Product defaults
 
-Ghosium does not operate a browser-account backend, advertising identifier system or application analytics SDK. The product does not include Firebase Analytics, Google Analytics, App Center or Sentry Android telemetry.
-
-Google Search is the default external web search service. Search queries are submitted directly to Google; Ghosium does not proxy, store or index them through a first-party search server.
+Ghosium does not operate a browser-account backend, advertising identifier system or application analytics SDK. Google Search is the default external search service and queries are sent directly to Google.
 
 ## Windows
 
-The source-built Windows product blocks third-party cookies by default and disables selected browser-owned background/reporting, search-suggestion, speculative preload and remote New Tab promotional paths covered by repository contracts. Local browser profiles remain on the device unless a website or extension intentionally sends its own data elsewhere.
-
-Installed profile root:
-
-```text
-%LOCALAPPDATA%\Brendigo\Ghosium\User Data
-```
-
-Portable profile data stays beside the Portable executable and is not redirected into the normal installed profile.
+Local browser profiles remain on device unless a website or extension intentionally sends data elsewhere. Installed profile root is `%LOCALAPPDATA%\Brendigo\Ghosium\User Data`. Portable data stays beside the Portable executable and isolated from the installed profile.
 
 ## Android
 
-The Android application uses Android System WebView with Ghosium-owned navigation UI. Its defaults:
+Third-party cookies are disabled, mixed content is blocked, direct file/content access is disabled, Safe Browsing is enabled and TLS errors are cancelled. External non-HTTP(S) schemes require confirmation. No application analytics/advertising SDK is included.
 
-- third-party cookies disabled;
-- mixed HTTP content blocked;
-- direct WebView file/content access disabled;
-- Safe Browsing enabled where supported;
-- TLS/certificate errors cancelled rather than bypassed;
-- external non-HTTP(S) schemes require user confirmation;
-- no application analytics/advertising SDK;
-- browser-local app data excluded from Android cloud backup and device-to-device transfer.
+**Clear browsing data** clears WebView cache/history plus cookies and WebStorage managed by the app. Downloads use Android Download Manager; uploads use the system document picker.
 
-The app stores ordinary WebView browsing state locally on the device. Choosing **Clear browsing data** clears WebView cache/history and removes cookies and WebStorage data managed by the app/WebView.
+## Store and updates
 
-Downloads are delegated to Android's system Download Manager after a user/site-initiated download. File upload uses the Android system document picker so the user selects which file URI to expose to the page.
-
-## Websites and search results
-
-Ghosium is a browser, not an anonymity network. A website intentionally opened by the user receives normal network traffic and can apply its own privacy practices subject to browser controls and Ghosium filtering.
-
-## Ghosium Store and updates
-
-The Store source has no analytics, advertising SDK or remote font dependency. Windows updates are bound to first-party Ghosium endpoints and fail closed on package identity, hash or signing mismatches.
+The Store source has no analytics/advertising SDK or remote font dependency. Windows updates are bound to first-party Ghosium endpoints and fail closed on identity/hash/signing mismatches.
 
 Current public privacy policy: https://ghosium.com/legal/privacy-policy

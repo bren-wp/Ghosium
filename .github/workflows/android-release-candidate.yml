@@ -1,0 +1,93 @@
+name: Ghosium Android Release Candidate
+
+on:
+  push:
+    branches:
+      - 'ghosium/release/**'
+    paths:
+      - '.release/*.request'
+      - 'android/**'
+      - 'VERSION'
+      - '.github/workflows/android-release-candidate.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  candidate:
+    name: Verify unsigned Android release candidate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - name: Checkout exact candidate
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+      - name: Validate exact version-bound marker
+        id: version
+        shell: python
+        run: |
+          import os, re
+          from pathlib import Path
+          version = Path('VERSION').read_text(encoding='utf-8').strip()
+          if not re.fullmatch(r'0\.\d+\.\d+', version):
+              raise SystemExit(f'Invalid VERSION: {version!r}')
+          if os.environ.get('GITHUB_REF') != f'refs/heads/ghosium/release/{version}':
+              raise SystemExit('Release candidate branch does not match VERSION.')
+          marker = Path(f'.release/ghosium-v{version}.request')
+          markers = sorted(Path('.release').glob('ghosium-v*.request'))
+          if markers != [marker] or marker.read_text(encoding='utf-8').strip() != f'ghosium-v{version}':
+              raise SystemExit('Exact single release marker contract failed.')
+          android = Path('android/app/build.gradle').read_text(encoding='utf-8')
+          name = re.search(r"versionName\s+'([^']+)'", android)
+          code = re.search(r'versionCode\s+(\d+)', android)
+          if not name or name.group(1) != version or not code:
+              raise SystemExit('Android version contract failed.')
+          with Path(os.environ['GITHUB_OUTPUT']).open('a', encoding='utf-8') as out:
+              out.write(f'version={version}\nversion_code={code.group(1)}\n')
+      - name: Select JDK 17 and install pinned Android SDK
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "JAVA_HOME=$JAVA_HOME_17_X64" >> "$GITHUB_ENV"
+          echo "$JAVA_HOME_17_X64/bin" >> "$GITHUB_PATH"
+          sdkmanager_bin="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          set +o pipefail
+          yes | "$sdkmanager_bin" 'platforms;android-36' 'build-tools;36.0.0' >/dev/null
+          status=${PIPESTATUS[1]}
+          set -o pipefail
+          exit "$status"
+      - name: Download and verify Gradle 8.13
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --show-error --silent --location --retry 5 --proto '=https' --proto-redir '=https' \
+            https://services.gradle.org/distributions/gradle-8.13-bin.zip -o "$RUNNER_TEMP/gradle.zip"
+          echo '20f1b1176237254a6fc204d8434196fa11a4cfb387567519c61556e8710aed78  '$RUNNER_TEMP'/gradle.zip' | sha256sum -c -
+          unzip -q "$RUNNER_TEMP/gradle.zip" -d "$RUNNER_TEMP"
+          echo "$RUNNER_TEMP/gradle-8.13/bin" >> "$GITHUB_PATH"
+      - name: Verify unsigned release payload
+        env:
+          GHOSIUM_VERSION: ${{ steps.version.outputs.version }}
+          GHOSIUM_VERSION_CODE: ${{ steps.version.outputs.version_code }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gradle --no-daemon -p android testDebugUnitTest lintRelease assembleRelease
+          apk="$(find android/app/build/outputs/apk/release -maxdepth 1 -type f -name 'app-release*.apk' -print -quit)"
+          test -n "$apk" && test -s "$apk"
+          badging="$("$ANDROID_HOME/build-tools/36.0.0/aapt" dump badging "$apk")"
+          grep -F "package: name='com.brendigo.ghosium'" <<<"$badging"
+          grep -F "versionCode='$GHOSIUM_VERSION_CODE'" <<<"$badging"
+          grep -F "versionName='$GHOSIUM_VERSION'" <<<"$badging"
+          mkdir -p artifacts/android-candidate
+          cp "$apk" artifacts/android-candidate/Ghosium-Browser-Android-unsigned-candidate.apk
+      - name: Upload QA-only unsigned candidate
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: ghosium-android-unsigned-${{ steps.version.outputs.version }}
+          path: artifacts/android-candidate/Ghosium-Browser-Android-unsigned-candidate.apk
+          if-no-files-found: error
+          retention-days: 7

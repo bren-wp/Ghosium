@@ -1,27 +1,17 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-09-11T20:36:00Z",
-  "extensions": [
-    {
-      "id": "ghosium-privacy",
-      "name": "Ghosium Privacy",
-      "version": "0.0.3",
-      "manifestVersion": 3,
-      "status": "built_in",
-      "description": "Built-in declarative tracker protection, Ghosium new-tab experience and local customization.",
-      "publisher": "Brendigo",
-      "homepage": "https://ghosium.com/security",
-      "permissions": [
-        "declarativeNetRequest",
-        "storage"
-      ],
-      "hostPermissions": [
-        "<all_urls>"
-      ],
-      "distribution": {
-        "type": "bundled",
-        "package": null
-      }
-    }
-  ]
+  "updatedAt": "2026-10-04T17:47:00Z",
+  "extensions": [{
+    "id": "ghosium-privacy",
+    "name": "Ghosium Privacy",
+    "version": "0.0.4",
+    "manifestVersion": 3,
+    "status": "built_in",
+    "description": "Built-in declarative tracker protection, Ghosium new-tab experience and local customization.",
+    "publisher": "Brendigo",
+    "homepage": "https://ghosium.com/security",
+    "permissions": ["declarativeNetRequest", "storage"],
+    "hostPermissions": ["<all_urls>"],
+    "distribution": {"type":"bundled","package":null}
+  }]
 }

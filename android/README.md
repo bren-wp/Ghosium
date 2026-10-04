@@ -1,40 +1,15 @@
-# Ghosium Browser for Android 0.0.3
-
-## Baseline
+# Ghosium Browser for Android 0.0.4
 
 - Package: `com.brendigo.ghosium`
-- Version code: `3`
-- Version name: `0.0.3`
-- Minimum SDK: 29 (Android 10)
-- Compile SDK: 36
-- Target SDK: 36
-- Java: 17
-- Build system: Android Gradle Plugin 8.13.2 / Gradle 8.13
+- Version code/name: `4` / `0.0.4`
+- Min SDK: 29; compile/target SDK: 36
+- Java 17; AGP 8.13.2; Gradle 8.13
+- AppCompat 1.8.0; Material 1.14.0
 
-## Browser UI and lifecycle
+The app uses Android System WebView inside Ghosium-owned native UI with navigation, downloads, file chooser, fullscreen, Desktop Site, Find in Page, Share, clear browsing data, deep links, state restoration and renderer recovery.
 
-The application uses Android System WebView inside a Ghosium-owned native activity. It implements address/search navigation, Back/Forward/Home/Reload, local New Tab, downloads, file chooser, fullscreen media, Desktop Site, Find in Page, Share, clear browsing data, deep-link handling, state restoration and renderer recovery.
+0.0.4 validates DNS/IDN hostnames, IPv4 octets and explicit ports before host navigation. Malformed host-like input becomes a search query.
 
-English is the base Android resource language and Croatian is provided in `values-hr`.
+Security defaults: third-party cookies off, mixed content blocked, file/content access off, Safe Browsing on, SSL errors cancelled, external schemes confirmed, no analytics SDK, browser data excluded from cloud backup/device transfer.
 
-## Privacy and security
-
-- third-party WebView cookies disabled;
-- mixed content never allowed;
-- direct WebView file access disabled;
-- direct WebView content access disabled;
-- Safe Browsing enabled where supported;
-- SSL errors are cancelled;
-- external non-HTTP(S) schemes require confirmation;
-- no analytics/advertising SDK;
-- Android cloud backup and device transfer excluded for browser data.
-
-## QA
-
-The 0.0.3 quality workflow installs stable API 36/build-tools 36.0.0, verifies Gradle 8.13 by SHA-256 and runs unit tests + lint with warnings-as-errors + debug/release assembly. Debug APK signing is verified only as QA identity; it is not the production signing identity.
-
-## Production signing
-
-Production signing is supplied at runtime through GitHub Actions secrets. The keystore/private key is never checked into the repository. The production workflow verifies the APK with `apksigner`, confirms package/version via `aapt`, records APK SHA-256/size and signer certificate SHA-256, then publishes `Ghosium-Browser-Android.apk` only after those checks pass.
-
-Required secret names are documented in the repository `BUILDING.md`.
+`release-quality.yml` performs unit/lint/release assembly, `android-release-candidate.yml` validates the exact candidate without production keys, and `production-release.yml` verifies signed APK identity/hash/signer/source provenance.

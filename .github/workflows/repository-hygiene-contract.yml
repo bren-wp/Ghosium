@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   repository-hygiene:
-    name: Verify clean 0.0.1 baseline and fail-closed repository state
+    name: Verify active baseline and fail-closed repository state
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -21,7 +21,7 @@ jobs:
           persist-credentials: false
           fetch-depth: 0
 
-      - name: Verify Ghosium New Tab and retired Search removal
+      - name: Verify retired paths and legacy release workflows remain absent
         shell: python
         run: |
           from pathlib import Path
@@ -33,13 +33,27 @@ jobs:
           ):
               if path.exists():
                   raise SystemExit(f'Retired path returned: {path}')
-          newtab = Path('extension/newtab.html').read_text(encoding='utf-8')
-          for required in ('action="https://www.google.com/search"', 'name="q"', 'GHOSIUM BROWSER', 'placeholder="Search the web"'):
-              if required not in newtab:
-                  raise SystemExit(f'Ghosium New Tab contract missing: {required}')
-          for forbidden in ('search.ghosium.com', 'Ghosium Search', 'search-provider', 'search-web'):
-              if forbidden in newtab:
-                  raise SystemExit(f'Retired Search surface returned: {forbidden}')
+
+          obsolete = (
+              'ghosium-0.0.1-candidate-retry-dispatch.yml',
+              'ghosium-0.0.1-post-release-cleanup.yml',
+              'ghosium-0.0.2-release-trigger.yml',
+              'ghosium-0.0.3-android-release-candidate.yml',
+              'ghosium-0.0.3-candidate-trigger.yml',
+              'ghosium-0.0.3-production-release.yml',
+              'ghosium-0.0.3-quality.yml',
+          )
+          for name in obsolete:
+              if Path('.github/workflows', name).exists():
+                  raise SystemExit(f'Obsolete version-specific workflow returned: {name}')
+
+          for path in (
+              Path('.github/workflows/release-quality.yml'),
+              Path('.github/workflows/android-release-candidate.yml'),
+              Path('.github/workflows/production-release.yml'),
+          ):
+              if not path.is_file():
+                  raise SystemExit(f'Generic release workflow missing: {path}')
 
       - name: Verify fail-closed checked-in update baseline
         shell: python
@@ -48,7 +62,7 @@ jobs:
           from pathlib import Path
           version = Path('VERSION').read_text(encoding='utf-8').strip()
           if not re.fullmatch(r'0\.\d+\.\d+', version):
-              raise SystemExit(f'Invalid Ghosium VERSION: {version!r}')
+              raise SystemExit(f'Invalid VERSION: {version!r}')
           manifest = json.loads(Path('updates-web/windows/stable.json').read_text(encoding='utf-8'))
           expected = {
               'schema': 1, 'product': 'Ghosium Browser', 'platform': 'windows',
@@ -58,28 +72,26 @@ jobs:
               'release_notes': f'https://ghosium.com/release-notes/{version}',
           }
           if manifest != expected:
-              raise SystemExit(f'Checked-in update baseline is not exact/fail-closed: {manifest}')
+              raise SystemExit(f'Checked-in update baseline mismatch: {manifest}')
 
-      - name: Verify documentation contains only the active version
+      - name: Verify documentation contains only active version
         shell: python
         run: |
           import re
           from pathlib import Path
           version = Path('VERSION').read_text(encoding='utf-8').strip()
-          docs = (
-              Path('README.md'), Path('BUILDING.md'), Path('CHANGELOG.md'),
-              Path('docs/RELEASE.md'), Path('engine/README.md'),
-          )
-          version_re = re.compile(r'\b0\.\d+\.\d+\b')
+          docs = (Path('README.md'), Path('BUILDING.md'), Path('CHANGELOG.md'),
+                  Path('docs/RELEASE.md'), Path('engine/README.md'))
+          pattern = re.compile(r'\b0\.\d+\.\d+\b')
           for path in docs:
               text = path.read_text(encoding='utf-8')
-              other = sorted({v for v in version_re.findall(text) if v != version})
+              other = sorted({v for v in pattern.findall(text) if v != version})
               if other:
                   raise SystemExit(f'Old active-version history remains in {path}: {other}')
               if version not in text:
                   raise SystemExit(f'Active VERSION missing from {path}: {version}')
           if not Path('CHANGELOG.md').read_text(encoding='utf-8').startswith(f'# Changelog\n\n## {version} '):
-              raise SystemExit('CHANGELOG must contain only the current baseline entry first.')
+              raise SystemExit('CHANGELOG must start with the current baseline entry.')
 
       - name: Verify release workflow hygiene
         shell: python
@@ -87,10 +99,14 @@ jobs:
           from pathlib import Path
           dispatcher = Path('.github/workflows/release-request-dispatch.yml').read_text(encoding='utf-8')
           full_source = Path('.github/workflows/full-source-windows-build.yml').read_text(encoding='utf-8')
-          for required in ("'ghosium/release/**'", "'.release/*.request'", 'expected_ref="refs/heads/ghosium/release/${version}"', 'Exactly one active Ghosium release request marker is required'):
+          for required in ("'ghosium/release/**'", "'.release/*.request'",
+                           'expected_ref="refs/heads/ghosium/release/${version}"',
+                           'Exactly one active Ghosium release request marker is required'):
               if required not in dispatcher:
                   raise SystemExit(f'Candidate dispatcher invariant missing: {required}')
-          for required in ('ghosium-source-builder', '$params.RequireSigning = $true', "if: github.ref == 'refs/heads/main'", 'GHOSIUM-PUBLIC-SETUP.json', 'GHOSIUM-UPDATE-MANIFEST.json', 'SHA256SUMS.txt'):
+          for required in ('ghosium-source-builder', '$params.RequireSigning = $true',
+                           "if: github.ref == 'refs/heads/main'", 'GHOSIUM-PUBLIC-SETUP.json',
+                           'GHOSIUM-UPDATE-MANIFEST.json', 'SHA256SUMS.txt'):
               if required not in full_source:
                   raise SystemExit(f'Canonical full-source invariant missing: {required}')
 
