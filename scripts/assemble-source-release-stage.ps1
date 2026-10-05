@@ -134,6 +134,26 @@ try {
 Copy-Item (Join-Path $repoRoot 'LICENSE') (Join-Path $stagePath 'LICENSE') -Force
 Copy-Item (Join-Path $repoRoot 'THIRD_PARTY_NOTICES.md') (Join-Path $stagePath 'THIRD_PARTY_NOTICES.md') -Force
 
+# Ghosium is one browser executable. Tor is bundled only as an internal network
+# transport dependency and is staged under Tor/ with a pinned archive hash.
+$torStager = Join-Path $repoRoot 'scripts/stage-tor-runtime.ps1'
+if (!(Test-Path $torStager -PathType Leaf)) {
+  throw 'Ghosium Tor runtime stager is missing.'
+}
+& $torStager -StageDir $stagePath
+if ($LASTEXITCODE -ne 0) {
+  throw 'Pinned Ghosium Tor runtime staging failed.'
+}
+$torReportPath = Join-Path $stagePath 'Tor/GHOSIUM-TOR-RUNTIME.json'
+$torExecutable = Join-Path $stagePath 'Tor/tor.exe'
+foreach ($requiredTorRuntime in @($torReportPath, $torExecutable)) {
+  if (!(Test-Path $requiredTorRuntime -PathType Leaf) -or
+      (Get-Item $requiredTorRuntime).Length -le 0) {
+    throw "Assembled release stage is missing required Tor runtime input: $requiredTorRuntime"
+  }
+}
+$torRuntimeReport = Get-Content $torReportPath -Raw | ConvertFrom-Json
+
 $stageBrowser = Join-Path $stagePath 'Ghosium-Browser.exe'
 if (!(Test-Path $stageBrowser -PathType Leaf)) {
   throw 'Assembled release stage lost Ghosium-Browser.exe.'
@@ -195,6 +215,15 @@ $report = [ordered]@{
   engineVersionDirectory = $engineVersionDir.Name
   browserExecutable = 'Ghosium-Browser.exe'
   browserSha256 = (Get-FileHash $stageBrowser -Algorithm SHA256).Hash.ToLowerInvariant()
+  torRuntime = [ordered]@{
+    component = [string]$torRuntimeReport.component
+    version = [string]$torRuntimeReport.version
+    platform = [string]$torRuntimeReport.platform
+    archiveSha256 = [string]$torRuntimeReport.archiveSha256
+    torExecutable = 'Tor/tor.exe'
+    torExecutableSha256 = [string]$torRuntimeReport.torExecutableSha256
+    pluggableTransportIncluded = [bool]$torRuntimeReport.pluggableTransportIncluded
+  }
   fileCount = $files.Count
   totalBytes = $totalBytes
   legalPayload = [ordered]@{
