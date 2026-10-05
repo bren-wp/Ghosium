@@ -361,13 +361,20 @@ if ($SourceRoot) {
   }
 
   $searchSource = Get-Content (Join-Path $resolvedSourceRoot 'components/search_engines/template_url_prepopulate_data.cc') -Raw
-  foreach ($requiredGoogleFallback in @(
-    'return FindPrepopulatedEngineInternal(prefs, regional_prepopulated_engines,',
-    'google.id,',
-    '/*use_first_as_fallback=*/true'
-  )) {
-    if (!$searchSource.Contains($requiredGoogleFallback)) {
-      throw "Google Search fallback integration is missing: $requiredGoogleFallback"
+  if (!$searchSource.Contains('return PrepopulatedEngineToTemplateURLData(&duckduckgo);')) {
+    throw 'DuckDuckGo fallback integration is missing from the transformed engine.'
+  }
+  $fallbackMatch = [regex]::Match(
+    $searchSource,
+    '(?ms)std::unique_ptr<TemplateURLData>\s+GetPrepopulatedFallbackSearch\s*\(.*?\)\s*\{(?<body>.*?)\n\}'
+  )
+  if (!$fallbackMatch.Success) {
+    throw 'Unable to isolate transformed fallback-search function.'
+  }
+  $fallbackBody = $fallbackMatch.Groups['body'].Value
+  foreach ($forbiddenGoogleFallback in @('google.id', 'use_first_as_fallback')) {
+    if ($fallbackBody.Contains($forbiddenGoogleFallback)) {
+      throw "Google-owned fallback behavior returned to Ghosium: $forbiddenGoogleFallback"
     }
   }
   foreach ($forbiddenSearchIdentity in @(
