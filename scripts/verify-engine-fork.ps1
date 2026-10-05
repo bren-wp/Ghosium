@@ -23,6 +23,8 @@ $productVersionRewritePath = Join-Path $repoRoot 'scripts/rewrite-engine-product
 $internalSchemeRewritePath = Join-Path $repoRoot 'scripts/rewrite-engine-internal-scheme.ps1'
 $publicSurfacesRewritePath = Join-Path $repoRoot 'scripts/rewrite-engine-public-surfaces.ps1'
 $performanceDefaultsRewritePath = Join-Path $repoRoot 'scripts/rewrite-engine-performance-defaults.ps1'
+$torRouteRewritePath = Join-Path $repoRoot 'scripts/rewrite-engine-tor-route.ps1'
+$torContractPath = Join-Path $repoRoot 'engine/tor/windows-x64.json'
 
 foreach ($required in @(
   $configPath,
@@ -40,7 +42,9 @@ foreach ($required in @(
   $productVersionRewritePath,
   $internalSchemeRewritePath,
   $publicSurfacesRewritePath,
-  $performanceDefaultsRewritePath
+  $performanceDefaultsRewritePath,
+  $torRouteRewritePath,
+  $torContractPath
 )) {
   if (!(Test-Path $required -PathType Leaf)) {
     throw "Required Ghosium fork file is missing: $required"
@@ -358,6 +362,28 @@ if ($SourceRoot) {
     if ($aboutHandler.Contains($forbiddenAlias)) {
       throw "Canonical ghost://profiles/passwords regressed to a browser_about_handler alias: $forbiddenAlias"
     }
+  }
+
+  $torStartup = Get-Content (Join-Path $resolvedSourceRoot 'chrome/app/chrome_main_delegate.cc') -Raw
+  foreach ($requiredTorToken in @(
+    'Ghosium integrated Tor route',
+    'kGhosiumTorSwitch[] = "ghosium-tor"',
+    'socks5://127.0.0.1:17650',
+    'Tor User Data',
+    'Tor Runtime Data',
+    'host-resolver-rules',
+    'disable-quic',
+    'disable-background-networking',
+    'disable_non_proxied_udp',
+    '__OwningControllerProcess',
+    'Tor/tor.exe'
+  )) {
+    if (!$torStartup.Contains($requiredTorToken)) {
+      throw "Ghosium integrated Tor route is missing source contract token: $requiredTorToken"
+    }
+  }
+  if ($torStartup.Contains('socks5://127.0.0.1:9150')) {
+    throw 'Ghosium Tor route regressed to the common Tor Browser SOCKS port.'
   }
 
   $searchSource = Get-Content (Join-Path $resolvedSourceRoot 'components/search_engines/template_url_prepopulate_data.cc') -Raw
