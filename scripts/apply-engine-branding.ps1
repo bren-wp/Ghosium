@@ -268,6 +268,14 @@ if ($LASTEXITCODE -ne 0) {
   throw 'Ghosium performance-default rewrite failed.'
 }
 
+# Add the optional Tor-routed session to the same Ghosium Browser executable.
+# The route is fail-closed, uses an isolated profile and never creates a second
+# branded browser application.
+& (Join-Path $PSScriptRoot 'rewrite-engine-tor-route.ps1') -SourceRoot $sourceRootResolved
+if ($LASTEXITCODE -ne 0) {
+  throw 'Ghosium integrated Tor route rewrite failed.'
+}
+
 # Convert the complete production WebUI namespace after all targeted branding
 # replacements have consumed their reviewed upstream anchors.
 & (Join-Path $PSScriptRoot 'rewrite-engine-internal-scheme.ps1') -SourceRoot $sourceRootResolved
@@ -301,4 +309,4 @@ if ($LASTEXITCODE -ne 0) {
   throw 'Ghosium full-source verification failed after branding.'
 }
 
-Write-Host 'Source-level Ghosium branding, complete public-surface audit, product version, Search, Windows identity, first-party links, locales, product icons and ghost:// internal UI routing applied and verified successfully.'
+Write-Host 'Source-level Ghosium branding, privacy search, Windows identity, integrated Tor route, first-party links, locales, product icons and ghost:// internal UI routing applied and verified successfully.'
