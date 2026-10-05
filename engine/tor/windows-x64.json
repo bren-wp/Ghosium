@@ -10,7 +10,7 @@
   "sha256": "e9dc6ccc93cd6afa507193f4de284d6424233ff5102155cd2c94b259e8a22b65",
   "normalizedRuntimeDirectory": "Tor",
   "normalizedExecutable": "Tor/tor.exe",
-  "socksEndpoint": "127.0.0.1:9150",
-  "controlEndpoint": "127.0.0.1:9151",
+  "socksEndpoint": "127.0.0.1:17650",
+  "controlEndpoint": "127.0.0.1:17651",
   "releaseNotes": "https://dist.torproject.org/torbrowser/15.0.24/"
 }
