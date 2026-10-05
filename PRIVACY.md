@@ -2,13 +2,13 @@
 
 ## Scope
 
-This document covers privacy behavior controlled by Ghosium Browser on Windows and Android and by Ghosium-controlled product services. Google Search and websites opened by the user are external services.
+This document covers privacy behavior controlled by Ghosium Browser on Windows and Android and by Ghosium-controlled product services. Search providers, Tor relays and websites intentionally opened by the user are external services.
 
 ## Product-wide defaults
 
 Ghosium does not operate a browser-account backend, advertising identifier system or application analytics SDK. The product does not include Firebase Analytics, Google Analytics, App Center or Sentry Android telemetry.
 
-Google Search is the default external web search service. Search queries are submitted directly to Google; Ghosium does not proxy, store or index them through a first-party search server.
+DuckDuckGo is the built-in fallback search provider. Remote search suggestions are disabled by default. Ghosium does not operate a first-party search index or silently fall back to Google-owned search services.
 
 ## Windows
 
@@ -21,6 +21,14 @@ Installed profile root:
 ```
 
 Portable profile data stays beside the Portable executable and is not redirected into the normal installed profile.
+
+### Integrated Tor route
+
+Windows remains one Ghosium Browser application and one public browser executable. When the Ghosium Tor route is selected, the same browser starts the pinned bundled Tor runtime and uses an isolated Tor user-data root instead of the Direct profile.
+
+The Tor route is configured fail-closed: browser traffic uses a local SOCKS5 endpoint, local DNS resolution is blocked for routed destinations, QUIC is disabled, non-proxied WebRTC UDP is disabled, and conflicting external proxy/PAC overrides are rejected. If the bundled Tor runtime is missing or cannot be launched, the Tor-routed browser startup fails instead of silently returning to Direct networking.
+
+The Tor daemon is an external open-source component from The Tor Project. Tor improves network anonymity but does not make every browser action anonymous; account logins, downloads, extensions, fingerprintable behavior and information deliberately submitted to websites can still identify a user.
 
 ## Android
 
@@ -41,7 +49,7 @@ Downloads are delegated to Android's system Download Manager after a user/site-i
 
 ## Websites and search results
 
-Ghosium is a browser, not an anonymity network. A website intentionally opened by the user receives normal network traffic and can apply its own privacy practices subject to browser controls and Ghosium filtering.
+In Direct browsing, a website intentionally opened by the user receives ordinary network traffic and can apply its own privacy practices subject to browser controls and Ghosium filtering. In the integrated Tor route, network traffic is routed through Tor, but website content and user actions can still reveal information.
 
 ## Ghosium Store and updates
 
