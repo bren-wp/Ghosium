@@ -21,11 +21,11 @@ Version 0.0.7 combines the pinned full-source Windows engine build with a native
 - Support: `https://ghosium.com/support`
 - Security: `https://ghosium.com/security`
 - Privacy: `https://ghosium.com/legal/privacy-policy`
-- Default external web search provider: Google Search
+- Default external web search provider: DuckDuckGo
 
 ## Windows 0.0.7
 
-The Windows product is compiled from the exact pinned upstream engine revision in `ENGINE_SOURCE_REVISION`. Ghosium source transforms apply product identity, `ghost://` internal routes, New Tab behavior, privacy defaults, update integration and native performance defaults while preserving sandboxing, site/process isolation, Safe Browsing and TLS/certificate validation.
+The Windows product is compiled from the exact pinned upstream engine revision in `ENGINE_SOURCE_REVISION`. Ghosium source transforms apply product identity, `ghost://` internal routes, New Tab behavior, privacy defaults, update integration and native performance defaults while preserving sandboxing, site/process isolation and TLS/certificate validation. Ghosium's privacy direction explicitly forbids background Google-owned product services; user-initiated navigation to ordinary websites remains normal.
 
 The documented Ghosium internal route contract is:
 
