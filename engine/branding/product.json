@@ -102,8 +102,20 @@
   },
   "externalServices": {
     "defaultSearch": {
-      "name": "Google Search",
-      "searchUrl": "https://www.google.com/search?q={searchTerms}"
+      "name": "DuckDuckGo",
+      "searchUrl": "https://duckduckgo.com/?q={searchTerms}",
+      "suggestionsEnabledByDefault": false
     }
+  },
+  "privacyBaseline": {
+    "internalGoogleWebServices": "disabled",
+    "browserAccountAndSync": "disabled",
+    "telemetryUpload": "disabled",
+    "crashUpload": "disabled",
+    "remoteSearchSuggestions": "disabled",
+    "speculativePreloading": "disabled",
+    "alternateErrorPageService": "disabled",
+    "thirdPartyCookies": "blocked",
+    "userInitiatedGoogleNavigation": "allowed"
   }
 }
