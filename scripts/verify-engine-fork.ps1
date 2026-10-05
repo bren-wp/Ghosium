@@ -24,6 +24,7 @@ $internalSchemeRewritePath = Join-Path $repoRoot 'scripts/rewrite-engine-interna
 $publicSurfacesRewritePath = Join-Path $repoRoot 'scripts/rewrite-engine-public-surfaces.ps1'
 $performanceDefaultsRewritePath = Join-Path $repoRoot 'scripts/rewrite-engine-performance-defaults.ps1'
 $torRouteRewritePath = Join-Path $repoRoot 'scripts/rewrite-engine-tor-route.ps1'
+$torMenuRewritePath = Join-Path $repoRoot 'scripts/rewrite-engine-tor-menu.ps1'
 $torContractPath = Join-Path $repoRoot 'engine/tor/windows-x64.json'
 
 foreach ($required in @(
@@ -44,6 +45,7 @@ foreach ($required in @(
   $publicSurfacesRewritePath,
   $performanceDefaultsRewritePath,
   $torRouteRewritePath,
+  $torMenuRewritePath,
   $torContractPath
 )) {
   if (!(Test-Path $required -PathType Leaf)) {
@@ -211,6 +213,8 @@ if ($SourceRoot) {
 
   $requiredEngineFiles = @(
     'chrome/app/chromium_strings.grd',
+    'chrome/app/chrome_command_ids.h',
+    'chrome/browser/ui/toolbar/app_menu_model.cc',
     'chrome/app/settings_chromium_strings.grdp',
     'chrome/common/url_constants.h',
     'chrome/common/webui_url_constants.h',
@@ -361,6 +365,23 @@ if ($SourceRoot) {
   )) {
     if ($aboutHandler.Contains($forbiddenAlias)) {
       throw "Canonical ghost://profiles/passwords regressed to a browser_about_handler alias: $forbiddenAlias"
+    }
+  }
+
+  $torCommandIds = Get-Content (Join-Path $resolvedSourceRoot 'chrome/app/chrome_command_ids.h') -Raw
+  $torAppMenu = Get-Content (Join-Path $resolvedSourceRoot 'chrome/browser/ui/toolbar/app_menu_model.cc') -Raw
+  if (!$torCommandIds.Contains('IDC_NEW_GHOSIUM_TOR_WINDOW       34064')) {
+    throw 'Ghosium native Tor window command id is missing.'
+  }
+  foreach ($requiredTorMenuToken in @(
+    'Ghosium native Tor menu entry',
+    'IDC_NEW_GHOSIUM_TOR_WINDOW',
+    'u"New Tor window"',
+    'tor_command.AppendSwitch("ghosium-tor")',
+    'base::LaunchProcess(tor_command, base::LaunchOptions())'
+  )) {
+    if (!$torAppMenu.Contains($requiredTorMenuToken)) {
+      throw "Ghosium native Tor menu integration is missing: $requiredTorMenuToken"
     }
   }
 
