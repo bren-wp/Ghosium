@@ -27,6 +27,9 @@ jobs:
         with:
           persist-credentials: false
           fetch-depth: 1
+      - name: Verify single-browser privacy and Tor contract
+        shell: pwsh
+        run: ./scripts/verify-single-browser-privacy.ps1
       - name: Verify version, privacy and package contracts
         shell: python
         run: |
