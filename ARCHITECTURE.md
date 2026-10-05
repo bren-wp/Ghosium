@@ -9,6 +9,12 @@ Ghosium 0.0.7 has two first-class client targets sharing one release identity:
 
 Both targets are versioned `0.0.7` and are published from the same Git commit.
 
+## 0.0.8 single-browser privacy direction
+
+The next Windows privacy iteration remains **one Ghosium Browser application**. Direct web access and Tor routing are network capabilities inside the same `Ghosium-Browser.exe`; they are not separate browser products or separate public executables. Tor-routed state is internally isolated to prevent correlation with Direct browsing, while the visible Ghosium design/UI/UX remains the same.
+
+The detailed contract is documented in `docs/SINGLE_BROWSER_PRIVACY.md`.
+
 ## Windows source boundary
 
 The repository does not vendor the complete Chromium source tree. It stores the exact upstream source/tool revisions, Ghosium branding and product metadata, reviewed source transformations, deterministic Windows build configuration, installer/release tooling and independent verification contracts.
