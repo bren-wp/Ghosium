@@ -376,7 +376,8 @@ if ($SourceRoot) {
     'disable-background-networking',
     'disable_non_proxied_udp',
     '__OwningControllerProcess',
-    'Tor/tor.exe'
+    'FILE_PATH_LITERAL("Tor")',
+    'FILE_PATH_LITERAL("tor.exe")'
   )) {
     if (!$torStartup.Contains($requiredTorToken)) {
       throw "Ghosium integrated Tor route is missing source contract token: $requiredTorToken"
