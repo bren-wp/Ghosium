@@ -276,6 +276,11 @@ if ($LASTEXITCODE -ne 0) {
   throw 'Ghosium integrated Tor route rewrite failed.'
 }
 
+& (Join-Path $PSScriptRoot 'rewrite-engine-tor-menu.ps1') -SourceRoot $sourceRootResolved
+if ($LASTEXITCODE -ne 0) {
+  throw 'Ghosium native Tor menu integration failed.'
+}
+
 # Convert the complete production WebUI namespace after all targeted branding
 # replacements have consumed their reviewed upstream anchors.
 & (Join-Path $PSScriptRoot 'rewrite-engine-internal-scheme.ps1') -SourceRoot $sourceRootResolved
