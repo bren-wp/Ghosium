@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "component": "Tor Expert Bundle",
+  "publisher": "The Tor Project",
+  "version": "15.0.24",
+  "platform": "windows-x86_64",
+  "archive": "tor-expert-bundle-windows-x86_64-15.0.24.tar.gz",
+  "url": "https://dist.torproject.org/torbrowser/15.0.24/tor-expert-bundle-windows-x86_64-15.0.24.tar.gz",
+  "signatureUrl": "https://dist.torproject.org/torbrowser/15.0.24/tor-expert-bundle-windows-x86_64-15.0.24.tar.gz.asc",
+  "sha256": "e9dc6ccc93cd6afa507193f4de284d6424233ff5102155cd2c94b259e8a22b65",
+  "normalizedRuntimeDirectory": "Tor",
+  "normalizedExecutable": "Tor/tor.exe",
+  "socksEndpoint": "127.0.0.1:9150",
+  "controlEndpoint": "127.0.0.1:9151",
+  "releaseNotes": "https://dist.torproject.org/torbrowser/15.0.24/"
+}
