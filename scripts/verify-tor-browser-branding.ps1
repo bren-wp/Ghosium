@@ -34,4 +34,31 @@ if (!(Get-Content $wordmark -Raw).Contains('<svg')) {
   throw 'Ghosium about wordmark failed SVG verification.'
 }
 
+
+$newTabRoot = Join-Path $source 'browser/extensions/newtab'
+$newTabHtml = Join-Path $newTabRoot 'prerendered/activity-stream.html'
+$newTabCss = Join-Path $newTabRoot 'css/activity-stream.css'
+$newTabMark = Join-Path $newTabRoot 'data/content/assets/ghosium-mark.svg'
+foreach ($required in @($newTabHtml, $newTabCss, $newTabMark)) {
+  if (!(Test-Path $required -PathType Leaf)) {
+    throw "Ghosium New Tab source asset is missing: $required"
+  }
+}
+
+$html = Get-Content $newTabHtml -Raw
+$css = Get-Content $newTabCss -Raw
+foreach ($token in @('GHOSIUM BROWSER', 'Browse freely.', 'Stay private.', 'duckduckgo.com', 'chrome://newtab/content/css/activity-stream.css')) {
+  if (!$html.Contains($token)) {
+    throw "Ghosium New Tab verification failed; missing: $token"
+  }
+}
+foreach ($token in @('--bg: #111016', '--aurora: #8af0c7', '--neon: #62e7d5', '.product-nav', '.search', '.status')) {
+  if (!$css.Contains($token)) {
+    throw "Ghosium New Tab CSS verification failed; missing: $token"
+  }
+}
+if ($html.Contains('newtab.js') -or $html.Contains('options.html')) {
+  throw 'Ghosium New Tab still references Chromium-extension-only runtime surfaces.'
+}
+
 Write-Host 'Ghosium Tor Browser source branding: OK'

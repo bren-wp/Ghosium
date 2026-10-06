@@ -60,4 +60,83 @@ if (!$wordmarkText.Contains('<svg')) {
   throw 'Ghosium about wordmark is not valid SVG text.'
 }
 
+
+# Preserve the existing Ghosium visual identity on Firefox/Tor Browser's built-in New Tab.
+$newTabRoot = Join-Path $source 'browser/extensions/newtab'
+$newTabHtmlTarget = Join-Path $newTabRoot 'prerendered/activity-stream.html'
+$newTabNoScriptTarget = Join-Path $newTabRoot 'prerendered/activity-stream-noscripts.html'
+$newTabDebugTarget = Join-Path $newTabRoot 'prerendered/activity-stream-debug.html'
+$newTabCssTarget = Join-Path $newTabRoot 'css/activity-stream.css'
+$newTabAssets = Join-Path $newTabRoot 'data/content/assets'
+
+foreach ($required in @($newTabRoot, (Split-Path $newTabHtmlTarget -Parent), (Split-Path $newTabCssTarget -Parent), $newTabAssets)) {
+  if (!(Test-Path $required -PathType Container)) {
+    throw "Pinned Tor Browser source is missing expected New Tab path: $required"
+  }
+}
+
+$uiHtmlSource = Join-Path $repoRoot 'extension/newtab.html'
+$uiCssSource = Join-Path $repoRoot 'extension/newtab.css'
+$uiMarkSource = Join-Path $repoRoot 'extension/ghosium-mark.svg'
+foreach ($required in @($uiHtmlSource, $uiCssSource, $uiMarkSource)) {
+  if (!(Test-Path $required -PathType Leaf)) {
+    throw "Canonical Ghosium UI asset is missing: $required"
+  }
+}
+
+$uiHtml = Get-Content $uiHtmlSource -Raw
+$uiHtml = $uiHtml.Replace('<script src="newtab.js" defer></script>', '')
+$uiHtml = $uiHtml.Replace('href="newtab.css"', 'href="chrome://newtab/content/css/activity-stream.css"')
+$uiHtml = $uiHtml.Replace('src="ghosium-mark.svg"', 'src="chrome://newtab/content/data/content/assets/ghosium-mark.svg"')
+$uiHtml = $uiHtml.Replace('class="local-option" href="options.html"', 'class="local-option" href="about:preferences"')
+$uiHtml = $uiHtml.Replace(
+  '<meta charset="utf-8">',
+  '<meta charset="utf-8">' + [Environment]::NewLine +
+  '  <meta http-equiv="Content-Security-Policy" content="default-src ''none''; style-src chrome:; img-src chrome: data:; form-action https://duckduckgo.com;">'
+)
+
+foreach ($target in @($newTabHtmlTarget, $newTabNoScriptTarget)) {
+  [IO.File]::WriteAllText($target, $uiHtml, [Text.UTF8Encoding]::new($false))
+}
+if (Test-Path $newTabDebugTarget -PathType Leaf) {
+  [IO.File]::WriteAllText($newTabDebugTarget, $uiHtml, [Text.UTF8Encoding]::new($false))
+}
+Copy-Item $uiCssSource $newTabCssTarget -Force
+Copy-Item $uiMarkSource (Join-Path $newTabAssets 'ghosium-mark.svg') -Force
+
+# Preserve the same Ghosium logo across Tor Browser release-branding icon surfaces when matching targets exist.
+$pngIconMap = @{
+  'default16.png' = (Join-Path $repoRoot 'extension/icons/16.png')
+  'default32.png' = (Join-Path $repoRoot 'extension/icons/32.png')
+  'default48.png' = (Join-Path $repoRoot 'extension/icons/48.png')
+  'default128.png' = (Join-Path $repoRoot 'extension/icons/128.png')
+}
+foreach ($entry in $pngIconMap.GetEnumerator()) {
+  $targets = @(Get-ChildItem $brandRoot -Recurse -File -Filter $entry.Key -ErrorAction SilentlyContinue)
+  if ((Test-Path $entry.Value -PathType Leaf) -and $targets.Count -gt 0) {
+    foreach ($target in $targets) {
+      Copy-Item $entry.Value $target.FullName -Force
+    }
+  }
+}
+$icoSource = Join-Path $repoRoot 'ghosium.ico'
+if (Test-Path $icoSource -PathType Leaf) {
+  foreach ($target in @(Get-ChildItem $brandRoot -Recurse -File -Filter '*.ico' -ErrorAction SilentlyContinue)) {
+    Copy-Item $icoSource $target.FullName -Force
+  }
+}
+
+$renderedHtml = Get-Content $newTabHtmlTarget -Raw
+$renderedCss = Get-Content $newTabCssTarget -Raw
+foreach ($token in @('GHOSIUM BROWSER', 'Browse freely.', 'Stay private.', 'duckduckgo.com', 'ghosium-mark.svg')) {
+  if (!$renderedHtml.Contains($token)) {
+    throw "Ghosium New Tab source port is missing required UI token: $token"
+  }
+}
+foreach ($token in @('--bg: #111016', '--aurora: #8af0c7', '.search', '.status')) {
+  if (!$renderedCss.Contains($token)) {
+    throw "Ghosium New Tab CSS port is missing required design token: $token"
+  }
+}
+
 Write-Host "Ghosium Tor Browser source branding applied to $changed brand resource file(s)."

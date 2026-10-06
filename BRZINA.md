@@ -1,29 +1,23 @@
-# Ghosium Browser 0.0.3 — brzina i potrošnja resursa
+# Ghosium Browser 0.0.3 — performance policy
 
-Ovaj dokument definira provjerljivu Windows usporedbu Ghosium Browsera s drugim preglednicima. Cilj nije marketinška tvrdnja bez dokaza, nego ista mjerenja na istom računalu, u istom kontroliranom runu i s evidentiranim verzijama izvršnih datoteka.
+Ghosium 0.0.3 changes the browser engine to the pinned Tor Browser / Firefox ESR Windows source baseline. Historical performance evidence from older engine generations is retained only for provenance and must **not** be presented as a 0.0.3 performance result.
 
-## Što mjerimo
+## What may be claimed
 
-Kontrolirani Windows benchmark koristi svježe profile i 1, 5 i 10 tabova. Bilježe se vrijeme do prvog upotrebljivog prozora, broj procesa, working-set RAM, private memory, Windows handleovi i normalizirana CPU aktivnost nakon stabilizacije.
+A numerical speed, RAM, CPU, GPU or startup claim for Ghosium 0.0.3 requires a measurement produced from the exact public 0.0.3 build on a documented Windows host.
 
-## Pravila
+Until such evidence exists, the project makes no universal claim that 0.0.3 is faster or lighter than another browser.
 
-1. Rezultat vrijedi samo za exact-build SHA naveden u evidence datoteci.
-2. Nedostupan konkurentski preglednik označava se kao nedostupan; rezultat se ne procjenjuje niti izmišlja.
-3. Ghosium se ne opisuje kao brojčano brži/štedljiviji dok exact-build dokaz to ne pokaže za konkretnu metriku.
-4. Sandbox, process/site isolation, Safe Browsing i TLS/certificate validation ne smiju se gasiti radi rezultata.
-5. Benchmark ne smije zatvarati pre-existing korisničke browser sesije; cleanup je ograničen na procese koje je benchmark sam pokrenuo.
+## Measurement rules
 
-## 0.0.3 optimizacije koje se provjeravaju
+1. Record the exact Ghosium release SHA and package SHA-256.
+2. Use isolated Ghosium profiles and do not terminate unrelated user browser processes.
+3. Record Windows version, hardware/runner identity and test methodology.
+4. Keep Tor enabled when measuring the public Ghosium runtime; do not benchmark a security-weakened configuration as the product.
+5. Do not disable certificate validation or browser security boundaries for performance.
+6. Separate browser startup timing from network latency measurements.
+7. Preserve raw evidence alongside any summary.
 
-- Chromiumov održavani Memory Saver ostaje nativni mehanizam za upravljanje memorijom.
-- Legacy background-app keep-alive ostaje isključen.
-- New Tab izbjegava nepotrebne remote promo/Doodle/prefetch putanje obuhvaćene Ghosium source contractom.
-- Windows Portable 0.0.3 koristi verzionirani runtime cache i ne raspakirava cijeli runtime pri svakom pokretanju.
-- Portable cache ima staging + ready-marker zaštitu od nepotpune pripreme.
+## Historical baseline
 
-Android 0.0.3 ne koristi ovaj Windows usporedni benchmark. Android stabilnost/performance se štiti lifecycle/state restore i renderer-recovery logikom; za Android se u ovom izdanju ne objavljuju neprovjerene usporedne brojke.
-
-## Evidence
-
-Canonical Windows release generira `GHOSIUM-PERFORMANCE.json`. Usporedne tvrdnje protiv drugih preglednika zahtijevaju odgovarajući exact-build comparison evidence. Ako dokaz ne postoji za release commit, ovaj dokument ne daje brojčanu tvrdnju o prednosti nad Chromeom, Edgeom, Firefoxom, Braveom, Vivaldijem ili Operom.
+`benchmarks/windows/v0.8.0-hosted-baseline.json` remains immutable historical evidence for its original build only. It is not a 0.0.3 benchmark and is not used to advertise the current Tor Browser / Firefox ESR engine.

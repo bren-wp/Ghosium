@@ -7,7 +7,6 @@ on:
     paths:
       - 'VERSION'
       - 'benchmarks/windows/v0.8.0-hosted-baseline.json'
-      - 'scripts/benchmark-ghosium-windows.ps1'
       - '.github/workflows/performance-baseline.yml'
   workflow_dispatch:
 

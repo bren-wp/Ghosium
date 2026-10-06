@@ -63,7 +63,7 @@ jobs:
             exit 1
           fi
 
-          tag="ghosium-v${version}"
+          tag="ghosium-v${version}-preview.1"
           marker=".release/${tag}.request"
           [[ "${markers[0]}" == "$marker" ]]
           [[ "$HEAD_REF" == "ghosium/release/${version}" ]]

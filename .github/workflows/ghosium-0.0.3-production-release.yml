@@ -1,13 +1,13 @@
-name: Ghosium 0.0.11 Windows Production Release
+name: Ghosium 0.0.3 Windows Production Release
 
 on:
   push:
     branches: [main]
     paths:
-      - '.release/ghosium-v0.0.11.request'
+      - '.release/ghosium-v0.0.3-preview.1.request'
 
 concurrency:
-  group: ghosium-0.0.11-windows-production
+  group: ghosium-0.0.3-windows-production
   cancel-in-progress: false
 
 permissions:
@@ -34,8 +34,8 @@ jobs:
         run: |
           from pathlib import Path
           version = Path('VERSION').read_text(encoding='utf-8').strip()
-          marker = Path('.release/ghosium-v0.0.11.request').read_text(encoding='utf-8').strip()
-          if version != '0.0.11' or marker != 'ghosium-v0.0.11':
+          marker = Path('.release/ghosium-v0.0.3-preview.1.request').read_text(encoding='utf-8').strip()
+          if version != '0.0.3' or marker != 'ghosium-v0.0.3-preview.1':
               raise SystemExit(f'Invalid production release request: {version!r} / {marker!r}')
           if Path('android').exists():
               raise SystemExit('Windows-only release contains Android source.')
@@ -46,7 +46,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          tag='ghosium-v0.0.11'
+          tag='ghosium-v0.0.3-preview.1'
           if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             echo "Release $tag already exists; refusing overwrite." >&2
             exit 1
@@ -64,7 +64,7 @@ jobs:
           gh run watch "$run_id" --repo "$GITHUB_REPOSITORY" --exit-status
 
   sign-and-publish:
-    name: Sign and publish Windows-only Ghosium 0.0.11
+    name: Sign and publish Windows-only Ghosium 0.0.3
     needs: dispatch-windows-production
     runs-on: [self-hosted, windows, x64, ghosium-source-builder]
     timeout-minutes: 90
@@ -84,7 +84,7 @@ jobs:
       - name: Download exact source-built engine artifact
         uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5
         with:
-          name: ghosium-tor-browser-engine-windows-x64-0.0.11
+          name: ghosium-tor-browser-engine-windows-x64-0.0.3
           path: artifacts/engine
           run-id: ${{ needs.dispatch-windows-production.outputs.run_id }}
           github-token: ${{ github.token }}
@@ -102,7 +102,8 @@ jobs:
           if (!$firefox) { throw 'Source-built engine does not contain firefox.exe.' }
           Copy-Item (Join-Path $firefox.Directory.FullName '*') $runtime -Recurse -Force
           Copy-Item LICENSE,THIRD_PARTY_NOTICES.md,PRIVACY.md,SECURITY.md $stage -Force
-          ./compat-preview/vendor/build-native-launcher.ps1 -Version '0.0.11' -OutputPath (Join-Path $stage 'Ghosium-Browser.exe')
+          ./scripts/stage-tor-runtime.ps1 -StageDir $runtime -ReportPath (Join-Path $stage 'GHOSIUM-TOR-RUNTIME.json')
+          ./compat-preview/vendor/build-native-launcher.ps1 -Version '0.0.3' -OutputPath (Join-Path $stage 'Ghosium-Browser.exe')
           if ($LASTEXITCODE -ne 0) { throw 'Ghosium launcher compile failed.' }
       - name: Resolve signing identity and sign runtime executables
         id: sign
@@ -143,7 +144,7 @@ jobs:
           $public = (Resolve-Path 'artifacts/public').Path
           $icon = (Resolve-Path 'ghosium.ico').Path
           foreach ($script in @('installer/ghosium.nsi','installer/ghosium-portable.nsi')) {
-            & $makensis '/DGHOSIUM_VERSION=0.0.11' "/DGHOSIUM_STAGE=$stage" "/DGHOSIUM_ARTIFACTS=$public" "/DGHOSIUM_ICON=$icon" (Resolve-Path $script).Path
+            & $makensis '/DGHOSIUM_VERSION=0.0.3' "/DGHOSIUM_STAGE=$stage" "/DGHOSIUM_ARTIFACTS=$public" "/DGHOSIUM_ICON=$icon" (Resolve-Path $script).Path
             if ($LASTEXITCODE -ne 0) { throw "NSIS build failed: $script" }
           }
           $thumb = ($env:GHOSIUM_SIGN_CERT_THUMBPRINT -replace '[^0-9A-Fa-f]', '').ToUpperInvariant()
@@ -168,11 +169,12 @@ jobs:
           $ErrorActionPreference = 'Stop'
           $setup = Get-Item 'artifacts/public/Ghosium-Browser-Setup.exe'
           $portable = Get-Item 'artifacts/public/Ghosium-Browser-Portable.exe'
+          $torRuntime = Get-Content 'artifacts/stage/GHOSIUM-TOR-RUNTIME.json' -Raw | ConvertFrom-Json
           $evidence = [ordered]@{
             schemaVersion = 2
             product = 'Ghosium Browser'
             platform = 'windows-x86_64'
-            version = '0.0.11'
+            version = '0.0.3'
             engine = 'Tor Browser / Firefox ESR'
             torBrowserVersion = '15.0.24'
             firefoxVersion = '140.17.0esr'
@@ -180,6 +182,8 @@ jobs:
             chromiumFallbackAllowed = $false
             sourceCommit = $env:GITHUB_SHA
             publisher = $env:PUBLISHER
+            torExecutableSha256 = [string]$torRuntime.torExecutableSha256
+            torArchiveSha256 = [string]$torRuntime.archiveSha256
             setupSha256 = (Get-FileHash $setup.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
             portableSha256 = (Get-FileHash $portable.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
             setupSignature = [string](Get-AuthenticodeSignature $setup.FullName).Status
@@ -190,14 +194,14 @@ jobs:
           $files = @('artifacts/public/Ghosium-Browser-Setup.exe','artifacts/public/Ghosium-Browser-Portable.exe','artifacts/public/GHOSIUM-TOR-BROWSER-WINDOWS.json')
           $lines = foreach ($file in $files) { $item = Get-Item $file; "$((Get-FileHash $item.FullName -Algorithm SHA256).Hash.ToLowerInvariant())  $($item.Name)" }
           $lines | Set-Content 'artifacts/public/SHA256SUMS.txt' -Encoding ascii
-      - name: Publish immutable Ghosium 0.0.11 Windows release
+      - name: Publish immutable Ghosium 0.0.3 Windows release
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
-          $tag = 'ghosium-v0.0.11'
+          $tag = 'ghosium-v0.0.3-preview.1'
           gh release view $tag --repo $env:GITHUB_REPOSITORY *> $null
           if ($LASTEXITCODE -eq 0) { throw "Immutable release already exists: $tag" }
-          gh release create $tag artifacts/public/Ghosium-Browser-Setup.exe artifacts/public/Ghosium-Browser-Portable.exe artifacts/public/GHOSIUM-TOR-BROWSER-WINDOWS.json artifacts/public/SHA256SUMS.txt --target $env:GITHUB_SHA --title 'Ghosium Browser 0.0.11' --notes 'Windows-only Ghosium release built from the pinned Tor Browser 15.0.24 / Firefox 140.17.0 ESR source baseline. Chromium fallback is disabled. Setup and Portable are Authenticode-signed and bound to this exact source commit.'
+          gh release create $tag artifacts/public/Ghosium-Browser-Setup.exe artifacts/public/Ghosium-Browser-Portable.exe artifacts/public/GHOSIUM-TOR-BROWSER-WINDOWS.json artifacts/public/SHA256SUMS.txt --target $env:GITHUB_SHA --title 'Ghosium 0.0.3' --notes 'Windows-only Ghosium release built from the pinned Tor Browser 15.0.24 / Firefox 140.17.0 ESR source baseline. Chromium fallback is disabled. Setup and Portable are Authenticode-signed and bound to this exact source commit.'
           if ($LASTEXITCODE -ne 0) { throw 'GitHub release publication failed.' }
 
   verify-release:
@@ -214,7 +218,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          release_json="$(gh api "/repos/$GITHUB_REPOSITORY/releases/tags/ghosium-v0.0.11")"
+          release_json="$(gh api "/repos/$GITHUB_REPOSITORY/releases/tags/ghosium-v0.0.3-preview.1")"
           test "$(jq -r '.draft' <<<"$release_json")" = 'false'
           test "$(jq -r '.prerelease' <<<"$release_json")" = 'false'
           test "$(jq -r '.target_commitish' <<<"$release_json")" = "$GITHUB_SHA"

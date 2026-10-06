@@ -2,8 +2,8 @@
   "manifest_version": 3,
   "name": "Ghosium Privacy",
   "short_name": "Ghosium",
-  "version": "0.0.11",
-  "description": "Ghosium new tab, local customization and declarative privacy protection.",
+  "version": "0.0.3",
+  "description": "Ghosium visual identity and New Tab source payload for the Tor Browser / Firefox ESR engine.",
   "permissions": [
     "declarativeNetRequest",
     "storage"
@@ -37,5 +37,11 @@
   },
   "chrome_url_overrides": {
     "newtab": "newtab.html"
+  },
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "ghosium-ui@brendigo.com",
+      "strict_min_version": "140.0"
+    }
   }
 }
