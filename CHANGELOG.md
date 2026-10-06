@@ -4,20 +4,28 @@
 
 ### Product scope
 
-- Reduced Ghosium to one supported client target: Windows x64.
-- Removed the retired secondary client source and its build/release workflows.
-- Kept the public release contract focused on `Ghosium-Browser-Setup.exe` and `Ghosium-Browser-Portable.exe`.
+- Removed the mobile application and all mobile build/release workflows.
+- Ghosium is now a Windows x64-only browser product.
+- Public release assets are Setup and Portable only.
 
 ### Engine migration
 
-- Added a pinned Tor Browser desktop source contract for the reviewed Firefox ESR baseline.
-- Added SHA-256 verified source bootstrap from the official Tor Project archive.
-- Explicitly forbade Chromium fallback in the new engine contract.
-- Blocked 0.0.9 publication until the canonical Windows builder consumes the Tor Browser / Firefox ESR source path.
+- Moved the active 0.0.9 engine contract away from Chromium.
+- Pinned official Tor Browser 15.0.24 source.
+- Pinned Firefox 140.17.0 ESR and Tor 0.4.9.13 identities.
+- Added official-source SHA-256 verification and a fail-closed Tor Browser source bootstrap.
+- Explicitly forbade Chromium fallback for the 0.0.9 release line.
+- Began migrating the public Windows launcher to the internal Tor Browser/Firefox runtime.
 
-### QA and release
+### Windows launcher and profile model
 
-- Added Windows-only 0.0.9 product QA.
-- Added Windows-only production release orchestration.
-- Kept the stable updater fail-closed before canonical publication.
-- Preserved Setup/Portable lifecycle, Authenticode, provenance and SHA-256 release requirements.
+- Changed the internal runtime executable contract to `runtime/firefox.exe`.
+- Changed profile isolation from Chromium `--user-data-dir` to Firefox `-profile <path>`.
+- Kept the public executable identity `Ghosium-Browser.exe`.
+- Preserved Setup and registry-free Portable packaging as the required public Windows distribution model.
+
+### Release safety
+
+- Added Windows-only 0.0.9 QA and production orchestration.
+- Retired mobile-bearing 0.0.8 release workflows.
+- Production remains blocked until the Tor Browser-derived Windows source build, runtime, signing and provenance contracts are green.
