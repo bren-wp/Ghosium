@@ -283,6 +283,11 @@ if ($LASTEXITCODE -ne 0) {
   throw 'Ghosium integrated Tor route rewrite failed.'
 }
 
+& (Join-Path $PSScriptRoot 'rewrite-engine-onion-guard.ps1') -SourceRoot $sourceRootResolved
+if ($LASTEXITCODE -ne 0) {
+  throw 'Ghosium Direct-mode onion navigation hardening failed.'
+}
+
 & (Join-Path $PSScriptRoot 'rewrite-engine-tor-menu.ps1') -SourceRoot $sourceRootResolved
 if ($LASTEXITCODE -ne 0) {
   throw 'Ghosium native Tor menu integration failed.'
