@@ -1,8 +1,8 @@
-# Ghosium Browser 0.0.10
+# Ghosium Browser 0.0.11
 
-**Ghosium Browser by Brendigo** is a Windows x64 privacy browser. The active product version is **0.0.10**.
+**Ghosium Browser by Brendigo** is a Windows x64 privacy browser. The active product version is **0.0.11**.
 
-Ghosium 0.0.10 is Windows-only. The browser engine direction is pinned to the official Tor Browser 15.0.24 desktop source, based on Firefox 140.17.0 ESR with Tor 0.4.9.13. Chromium is not an allowed fallback engine for the 0.0.10 release line.
+Ghosium 0.0.11 is Windows-only. The browser engine direction is pinned to the official Tor Browser 15.0.24 desktop source, based on Firefox 140.17.0 ESR with Tor 0.4.9.13. Chromium is not an allowed fallback engine for the 0.0.11 release line.
 
 ## Product boundary
 
@@ -33,7 +33,7 @@ It pins:
 
 ## Release safety
 
-0.0.10 remains fail-closed until the exact Windows release candidate passes source-integrity, build, runtime, Setup, Portable, signing and provenance gates. The checked-in Windows updater manifest remains disabled until canonical publication.
+0.0.11 remains fail-closed until the exact Windows release candidate passes source-integrity, build, runtime, Setup, Portable, signing and provenance gates. The checked-in Windows updater manifest remains disabled until canonical publication.
 
 No release workflow may silently substitute a Chromium build, an upstream prebuilt browser binary or an unsigned public package.
 
