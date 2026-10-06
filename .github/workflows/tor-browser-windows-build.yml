@@ -8,7 +8,9 @@ on:
     paths:
       - 'VERSION'
       - 'engine/tor-browser/**'
+      - 'engine/tor/**'
       - 'scripts/bootstrap-tor-browser-source.ps1'
+      - 'scripts/stage-tor-runtime.ps1'
       - 'scripts/verify-tor-browser-upstream.ps1'
       - 'scripts/rebrand-tor-browser-source.ps1'
       - 'scripts/verify-tor-browser-branding.ps1'
@@ -177,9 +179,17 @@ jobs:
           if (!$firefox) { throw 'Source-built package does not contain firefox.exe.' }
           Copy-Item (Join-Path $firefox.Directory.FullName '*') $runtime -Recurse -Force
           Copy-Item LICENSE,THIRD_PARTY_NOTICES.md,PRIVACY.md,SECURITY.md $stage -Force
+          ./scripts/stage-tor-runtime.ps1 -StageDir $runtime -ReportPath (Join-Path $stage 'GHOSIUM-TOR-RUNTIME.json')
           ./compat-preview/vendor/build-native-launcher.ps1 -Version '0.0.3' -OutputPath (Join-Path $stage 'Ghosium-Browser.exe')
           if ($LASTEXITCODE -ne 0) { throw 'Ghosium launcher build failed.' }
-          foreach ($required in @((Join-Path $runtime 'firefox.exe'), (Join-Path $stage 'Ghosium-Browser.exe'))) {
+          foreach ($required in @(
+            (Join-Path $runtime 'firefox.exe'),
+            (Join-Path $runtime 'Tor/tor.exe'),
+            (Join-Path $runtime 'Tor/data/geoip'),
+            (Join-Path $runtime 'Tor/data/geoip6'),
+            (Join-Path $stage 'GHOSIUM-TOR-RUNTIME.json'),
+            (Join-Path $stage 'Ghosium-Browser.exe')
+          )) {
             if (!(Test-Path $required -PathType Leaf)) { throw "Missing staged runtime input: $required" }
           }
       - name: Build Setup and Portable
@@ -204,6 +214,7 @@ jobs:
           $setup = Get-Item 'artifacts/public/Ghosium-Browser-Setup.exe'
           $portable = Get-Item 'artifacts/public/Ghosium-Browser-Portable.exe'
           $engine = Get-Item 'artifacts/stage/runtime/firefox.exe'
+          $torRuntime = Get-Content 'artifacts/stage/GHOSIUM-TOR-RUNTIME.json' -Raw | ConvertFrom-Json
           $evidence = [ordered]@{
             schemaVersion = 1
             product = 'Ghosium Browser'
@@ -217,6 +228,8 @@ jobs:
             releaseReady = $true
             sourceCommit = $env:GITHUB_SHA
             engineSha256 = (Get-FileHash $engine.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+            torExecutableSha256 = [string]$torRuntime.torExecutableSha256
+            torArchiveSha256 = [string]$torRuntime.archiveSha256
             setupSha256 = (Get-FileHash $setup.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
             portableSha256 = (Get-FileHash $portable.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
           }
