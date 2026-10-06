@@ -9,6 +9,7 @@ $torPath = Join-Path $repoRoot 'engine/tor/windows-x64.json'
 $torRewritePath = Join-Path $repoRoot 'scripts/rewrite-engine-tor-route.ps1'
 $searchRewritePath = Join-Path $repoRoot 'scripts/rewrite-engine-default-search.ps1'
 $stageTorPath = Join-Path $repoRoot 'scripts/stage-tor-runtime.ps1'
+$googleServicesPath = Join-Path $repoRoot 'scripts/rewrite-engine-disable-google-services.ps1'
 $architecturePath = Join-Path $repoRoot 'docs/SINGLE_BROWSER_PRIVACY.md'
 
 foreach ($required in @(
@@ -17,6 +18,7 @@ foreach ($required in @(
   $torRewritePath,
   $searchRewritePath,
   $stageTorPath,
+  $googleServicesPath,
   $architecturePath
 )) {
   if (!(Test-Path $required -PathType Leaf)) {
@@ -81,6 +83,23 @@ foreach ($requiredToken in @(
 )) {
   if (!$torRewrite.Contains($requiredToken)) {
     throw "Ghosium Tor source transform lost required privacy token: $requiredToken"
+  }
+}
+
+$googleServices = Get-Content $googleServicesPath -Raw
+foreach ($requiredToken in @(
+  'Google Cloud Messaging is not a browser dependency',
+  'never create the background Domain Reliability uploader',
+  'never query a browser-owned remote network-time service',
+  'no remote variations/field-trial seed fetching',
+  'never attach experiment identifiers to web requests',
+  'crash data is never uploaded to an upstream endpoint',
+  'WebRTC diagnostic data stays off upstream upload paths',
+  'kWebRtcTextLogCollectionAllowed, false',
+  'do not query or upload form structure to Google Autofill'
+)) {
+  if (!$googleServices.Contains($requiredToken)) {
+    throw "Ghosium Google-service hardening lost required source contract: $requiredToken"
   }
 }
 
