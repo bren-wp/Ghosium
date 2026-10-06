@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.0.4 — Tor-only dead-code and architecture audit
+
+- Enforces Tor Browser / Firefox ESR as the only active browser engine.
+- Adds repository-wide regression guards against retired Chromium/Chrome, WebView2, CEF and Electron runtime/toolchain paths.
+- Tightens dead-code hygiene while preserving required historical/legal migration wording.
+
+
 ## 0.0.3 — Tor Browser / Firefox ESR Windows engine
 
 ### Public release line
