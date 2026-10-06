@@ -1,55 +1,52 @@
-<p align="center">
-  <img src="engine/branding/ghosium-mark.svg" width="112" alt="Ghosium Browser icon">
-</p>
-
 # Ghosium Browser 0.0.9
 
-**Ghosium Browser by Brendigo** is a privacy-focused **Windows x64** browser. The active product version is **0.0.9**.
+**Ghosium Browser by Brendigo** is a Windows x64 privacy browser. The active product version is **0.0.9**.
 
-The active development direction is a Windows-only migration to a pinned **Tor Browser / Firefox ESR** source baseline. Publication is fail-closed: Ghosium 0.0.9 must not be released until the Tor Browser-based Windows builder, runtime verification, Setup/Portable packaging, Authenticode signing and provenance gates are complete.
+Ghosium 0.0.9 is Windows-only. The browser engine direction is pinned to the official Tor Browser 15.0.24 desktop source, based on Firefox 140.17.0 ESR with Tor 0.4.9.13. Chromium is not an allowed fallback engine for the 0.0.9 release line.
 
-## Product identity
+## Product boundary
 
-- Product: **Ghosium Browser**
-- Publisher: **Brendigo**
-- Platform: **Windows x64**
-- Public browser: `Ghosium-Browser.exe`
-- Distribution: `Ghosium-Browser-Setup.exe` and `Ghosium-Browser-Portable.exe`
-- Home: `https://ghosium.com/`
-- Store: `https://store.ghosium.com/`
-- Updates: `https://updates.ghosium.com/`
-- Privacy: `https://ghosium.com/legal/privacy-policy`
-- Default external search provider: DuckDuckGo
+Public Windows artifacts:
 
-## Tor Browser / Firefox ESR engine direction
+- `Ghosium-Browser.exe`
+- `Ghosium-Browser-Setup.exe`
+- `Ghosium-Browser-Portable.exe`
 
-`engine/tor-browser/windows-x64.json` pins the reviewed upstream source baseline. The bootstrap path verifies the official source archive SHA-256 before extraction and explicitly forbids fallback to the retired engine path.
+The public launcher starts the internally packaged Tor Browser/Firefox runtime from `runtime/firefox.exe`. Installed and Portable profiles are isolated through Firefox's `-profile` argument. The Portable package keeps its profile in `Ghosium-Portable-Data` beside the executable.
 
-Ghosium remains one browser product and preserves its own Brendigo/Ghosium identity. Upstream third-party source, licenses and required notices remain attributed to their original owners.
+## Tor Browser source baseline
 
-## Windows profile and packaging
+The reviewed upstream contract lives at:
 
-Installed profile root:
+`engine/tor-browser/windows-x64.json`
 
-```text
-%LOCALAPPDATA%\Brendigo\Ghosium\User Data
-```
+It pins:
 
-Portable keeps browser data beside the Portable executable, uses versioned runtime caching and does not create shortcuts or registry-backed profile state.
+- Tor Browser: 15.0.24
+- Firefox: 140.17.0 ESR
+- Tor: 0.4.9.13
+- target: Windows x86_64
+- official Tor Project source archive and SHA-256
+- Chromium fallback: disabled
 
-The checked-in stable update manifest remains fail-closed before canonical publication: `enabled:false`, empty SHA-256 and zero size.
+`scripts/verify-tor-browser-upstream.ps1` validates that contract and `scripts/bootstrap-tor-browser-source.ps1` performs hash-verified source acquisition and extraction.
 
-## Development and verification
+## Release safety
 
-- Windows 0.0.9 QA: `.github/workflows/ghosium-0.0.9-quality.yml`
-- Windows production orchestration: `.github/workflows/ghosium-0.0.9-production-release.yml`
-- Tor Browser upstream verifier: `scripts/verify-tor-browser-upstream.ps1`
-- Tor Browser source bootstrap: `scripts/bootstrap-tor-browser-source.ps1`
-- Build documentation: `BUILDING.md`
-- Release procedure: `docs/RELEASE.md`
-- Architecture: `ARCHITECTURE.md`
-- Security: `SECURITY.md`
+0.0.9 remains fail-closed until the exact Windows release candidate passes source-integrity, build, runtime, Setup, Portable, signing and provenance gates. The checked-in Windows updater manifest remains disabled until canonical publication.
+
+No release workflow may silently substitute a Chromium build, an upstream prebuilt browser binary or an unsigned public package.
+
+## Privacy and security
+
+Ghosium preserves the Tor Browser anonymity model as the source baseline rather than treating Tor as only a proxy. Security-reducing shortcuts such as disabling certificate validation or browser sandbox protections are forbidden.
+
+User-visible Ghosium branding must not imply endorsement by the Tor Project. Tor Browser, Firefox, Tor and other third-party components remain governed by their respective licenses and trademark policies.
 
 ## License and third-party rights
 
-Brendigo-authored Ghosium material is governed by the **Brendigo Proprietary Commercial Software License Agreement** in `LICENSE`. Public repository visibility does not by itself grant an open-source license to Brendigo-authored proprietary material. Tor Browser, Firefox ESR, Tor and every other third-party or open-source component remain governed by their own licenses and trademark terms. Required attribution is preserved in `THIRD_PARTY_NOTICES.md` and applicable bundled material.
+Brendigo-authored Ghosium material is governed by the **Brendigo Proprietary Commercial Software License Agreement** in `LICENSE`.
+
+Public repository visibility does not by itself grant an open-source license to Brendigo-authored material.
+
+Tor Browser, Firefox, Tor and every other third-party or open-source component remain governed by their own licenses. Required notices are preserved in `THIRD_PARTY_NOTICES.md`.
