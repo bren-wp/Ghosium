@@ -9,6 +9,8 @@ on:
       - 'engine/**'
       - 'scripts/bootstrap-tor-browser-source.ps1'
       - 'scripts/verify-tor-browser-upstream.ps1'
+      - 'scripts/rebrand-tor-browser-source.ps1'
+      - 'scripts/verify-tor-browser-branding.ps1'
       - '.github/workflows/engine-source-audit.yml'
       - '.github/workflows/tor-browser-windows-build.yml'
   push:
@@ -19,6 +21,8 @@ on:
       - 'engine/**'
       - 'scripts/bootstrap-tor-browser-source.ps1'
       - 'scripts/verify-tor-browser-upstream.ps1'
+      - 'scripts/rebrand-tor-browser-source.ps1'
+      - 'scripts/verify-tor-browser-branding.ps1'
       - '.github/workflows/engine-source-audit.yml'
       - '.github/workflows/tor-browser-windows-build.yml'
   workflow_dispatch:
@@ -44,7 +48,9 @@ jobs:
           $ErrorActionPreference = 'Stop'
           foreach ($path in @(
             'scripts/verify-tor-browser-upstream.ps1',
-            'scripts/bootstrap-tor-browser-source.ps1'
+            'scripts/bootstrap-tor-browser-source.ps1',
+            'scripts/rebrand-tor-browser-source.ps1',
+            'scripts/verify-tor-browser-branding.ps1'
           )) {
             $tokens = $null
             $errors = $null
