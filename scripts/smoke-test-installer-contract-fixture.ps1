@@ -161,10 +161,9 @@ public static class Program {
     throw 'Ghosium installer fixture evidence failed the secure same-Setup lifecycle contract.'
   }
 
-  # Execute the real Portable wrapper as well. Use a caller-supplied profile
-  # switch intentionally; ghosium-portable.nsi appends its private adjacent
-  # --ghosium-portable-profile switch last. The hardened launcher consumes it
-  # and owns the final engine --user-data-dir.
+  # Execute the real Portable wrapper as well. Supply a conflicting private
+  # Ghosium profile switch intentionally; the Portable wrapper must append its
+  # adjacent profile contract last so caller input cannot redirect profile data.
   $portableWork = Join-Path $work 'portable-run'
   New-Item -ItemType Directory -Force -Path $portableWork | Out-Null
   $portableRun = Join-Path $portableWork 'Ghosium-Browser-Portable.exe'
@@ -172,8 +171,8 @@ public static class Program {
   $callerProfile = Join-Path $work 'caller-controlled-profile'
 
   $portableProcess = Start-Process -FilePath $portableRun -ArgumentList @(
-    '--disable-gpu',
-    "--user-data-dir=$callerProfile"
+    '--ghosium-wait',
+    "--ghosium-portable-profile=$callerProfile"
   ) -PassThru
   if (!$portableProcess.WaitForExit(60000)) {
     Stop-Process -Id $portableProcess.Id -Force -ErrorAction SilentlyContinue
@@ -205,7 +204,7 @@ public static class Program {
   }
   $portableArgs = @(Get-Content $portableArgsFile)
   $expectedPrivateProfile = "--ghosium-portable-profile=$portableProfile"
-  $callerProfileArg = "--user-data-dir=$callerProfile"
+  $callerProfileArg = "--ghosium-portable-profile=$callerProfile"
   if ($portableArgs -notcontains $expectedPrivateProfile) {
     throw "Portable wrapper did not append the private adjacent profile contract: $expectedPrivateProfile"
   }
