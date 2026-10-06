@@ -17,7 +17,7 @@ jobs:
   release-marker-promotion:
     name: Verify release-marker-only promotion and Tor Browser candidate evidence
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 360
     steps:
       - name: Checkout
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
@@ -134,35 +134,41 @@ jobs:
             exit 1
           fi
 
-          # The release branch push must start the candidate build for this exact SHA.
-          # Fail fast when orchestration is broken instead of polling for hours.
-          deadline=$((SECONDS + 1200))
+          # Firefox/Tor source builds can legitimately run for hours. Track only the
+          # newest exact-SHA candidate so a superseded failed attempt cannot poison a rerun.
+          deadline=$((SECONDS + 19800))
           run_id=""
-          seen_run=""
+          last_reported=""
           while (( SECONDS < deadline )); do
             runs_json="$(gh api --method GET "/repos/${GITHUB_REPOSITORY}/actions/workflows/tor-browser-windows-build.yml/runs" -f branch="$HEAD_REF" -f per_page='100')"
-            exact_runs="$(jq -c --arg sha "$CANDIDATE_SHA" '[.workflow_runs[] | select(.head_sha == $sha) | select(.event == "push" or .event == "workflow_dispatch")] | sort_by(.created_at)' <<< "$runs_json")"
-            seen_run="$(jq -r 'last | .id // empty' <<< "$exact_runs")"
+            selected="$(jq -c --arg sha "$CANDIDATE_SHA" '[.workflow_runs[] | select(.head_sha == $sha) | select(.event == "push" or .event == "workflow_dispatch")] | sort_by(.created_at) | last // empty' <<< "$runs_json")"
+            seen_run="$(jq -r '.id // empty' <<< "$selected")"
             if [[ -z "$seen_run" ]]; then
               echo "Candidate workflow was not started for exact release SHA $CANDIDATE_SHA." >&2
               echo "Expected a push-triggered run on $HEAD_REF." >&2
               exit 1
             fi
 
-            run_id="$(jq -r '[.[] | select(.status == "completed" and .conclusion == "success")] | last | .id // empty' <<< "$exact_runs")"
-            [[ -n "$run_id" ]] && break
-
-            terminal="$(jq -r '[.[] | select(.status == "completed" and .conclusion != "success")] | if length > 0 then (last | [.id, .conclusion] | @tsv) else empty end' <<< "$exact_runs")"
-            if [[ -n "$terminal" ]]; then
-              echo "Exact Tor Browser Windows candidate ended unsuccessfully: $terminal" >&2
+            status="$(jq -r '.status // empty' <<< "$selected")"
+            conclusion="$(jq -r '.conclusion // empty' <<< "$selected")"
+            if [[ "$status" == "completed" ]]; then
+              if [[ "$conclusion" == "success" ]]; then
+                run_id="$seen_run"
+                break
+              fi
+              echo "Newest exact Tor Browser Windows candidate $seen_run ended unsuccessfully: $conclusion" >&2
               exit 1
             fi
 
-            echo "Candidate run $seen_run is still active for $CANDIDATE_SHA."
-            sleep 60
+            report_key="$seen_run:$status"
+            if [[ "$report_key" != "$last_reported" ]]; then
+              echo "Candidate run $seen_run is $status for $CANDIDATE_SHA."
+              last_reported="$report_key"
+            fi
+            sleep 120
           done
 
-          [[ -n "$run_id" ]] || { echo 'Exact Tor Browser Windows candidate exceeded the 20-minute promotion wait window; inspect the candidate run directly.' >&2; exit 1; }
+          [[ -n "$run_id" ]] || { echo 'Timed out after 5.5 hours waiting for the newest exact Tor Browser Windows candidate.' >&2; exit 1; }
           artifact_name="ghosium-tor-browser-windows-x64-${GHOSIUM_VERSION}"
           artifacts_json="$(gh api --method GET "/repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}/artifacts" -f per_page='100')"
           artifact_id="$(jq -r --arg name "$artifact_name" '[.artifacts[] | select(.name == $name) | select(.expired == false)] | last | .id // empty' <<< "$artifacts_json")"
