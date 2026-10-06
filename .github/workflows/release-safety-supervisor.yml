@@ -41,7 +41,7 @@ jobs:
               continue
             fi
 
-            tag="ghosium-v$version"
+            tag="ghosium-v${version}-preview.1"
             marker_path=".release/$tag.request"
             marker_json="$(gh api "/repos/$GITHUB_REPOSITORY/contents/$marker_path?ref=$sha" 2>/dev/null || true)"
             marker="$(jq -r '.content // empty' <<<"$marker_json" | tr -d '\n' | base64 --decode 2>/dev/null | tr -d '\r\n ' || true)"
