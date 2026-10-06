@@ -99,7 +99,7 @@ jobs:
                   if not marker_only and not release_ci_hotfix:
                       raise SystemExit(
                           'Every merged production change requires the next public Ghosium VERSION; '
-                          'same-version exceptions are limited to the exact preview.1 release-marker PR '
+                          'same-version exceptions are limited to the exact preview.1 release-marker-only PR '
                           'or a workflow-only release-orchestration hotfix.'
                       )
                   if release_ci_hotfix:
