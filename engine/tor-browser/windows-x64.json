@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "product": "Tor Browser source",
+  "publisher": "The Tor Project",
+  "torBrowserVersion": "15.0.24",
+  "firefoxVersion": "140.17.0esr",
+  "torVersion": "0.4.9.13",
+  "desktopSeries": "15.0",
+  "sourceArchive": "src-firefox-tor-browser-140.17.0esr-15.0-1-build4.tar.xz",
+  "sourceUrl": "https://archive.torproject.org/tor-package-archive/torbrowser/15.0.24/src-firefox-tor-browser-140.17.0esr-15.0-1-build4.tar.xz",
+  "signatureUrl": "https://archive.torproject.org/tor-package-archive/torbrowser/15.0.24/src-firefox-tor-browser-140.17.0esr-15.0-1-build4.tar.xz.asc",
+  "sha256": "c217a69a1c929a81d5217247eb10dc5306176d94b2ab7918ddd9e4c5a28e169f",
+  "targetPlatform": "windows-x86_64",
+  "role": "future Ghosium engine source baseline",
+  "chromiumFallbackAllowed": false
+}
