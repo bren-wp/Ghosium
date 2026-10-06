@@ -82,7 +82,7 @@ jobs:
           else:
               public_readme, legal_readme = readme.split(legal_heading, 1)
               for number, line in enumerate(public_readme.splitlines(), 1):
-                  if legacy.search(line):
+                  if readme_legacy.search(line):
                       failures.append(f'README.md:{number}: {line.strip()}')
               for required in ('Tor Browser', 'Firefox ESR', 'Tor', 'third-party'):
                   if required.lower() not in legal_readme.lower():
