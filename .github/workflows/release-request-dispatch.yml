@@ -16,7 +16,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  dispatch-full-source:
+  dispatch-tor-browser-windows:
     name: Dispatch controlled Tor Browser Windows candidate build
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -36,8 +36,8 @@ jobs:
             echo "Invalid Ghosium VERSION: $version" >&2
             exit 1
           fi
-          tag="ghosium-v${version}"
-          marker=".release/${tag}.request"
+          tag="ghosium-v$version"
+          marker=".release/$tag.request"
           test -f "$marker"
           test "$(tr -d '\r\n ' < "$marker")" = "$tag"
           shopt -s nullglob
@@ -50,7 +50,7 @@ jobs:
             echo "Active release marker does not match VERSION $version: ${markers[0]}" >&2
             exit 1
           fi
-          expected_ref="refs/heads/ghosium/release/${version}"
+          expected_ref="refs/heads/ghosium/release/$version"
           if [[ "$GITHUB_REF" != "$expected_ref" ]]; then
             echo "Refusing release request from $GITHUB_REF; expected $expected_ref." >&2
             exit 1
