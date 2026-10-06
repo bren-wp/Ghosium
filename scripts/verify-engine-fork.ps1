@@ -25,6 +25,7 @@ $publicSurfacesRewritePath = Join-Path $repoRoot 'scripts/rewrite-engine-public-
 $performanceDefaultsRewritePath = Join-Path $repoRoot 'scripts/rewrite-engine-performance-defaults.ps1'
 $googleServicesRewritePath = Join-Path $repoRoot 'scripts/rewrite-engine-disable-google-services.ps1'
 $torRouteRewritePath = Join-Path $repoRoot 'scripts/rewrite-engine-tor-route.ps1'
+$onionGuardRewritePath = Join-Path $repoRoot 'scripts/rewrite-engine-onion-guard.ps1'
 $torMenuRewritePath = Join-Path $repoRoot 'scripts/rewrite-engine-tor-menu.ps1'
 $torContractPath = Join-Path $repoRoot 'engine/tor/windows-x64.json'
 
@@ -47,6 +48,7 @@ foreach ($required in @(
   $performanceDefaultsRewritePath,
   $googleServicesRewritePath,
   $torRouteRewritePath,
+  $onionGuardRewritePath,
   $torMenuRewritePath,
   $torContractPath
 )) {
@@ -217,6 +219,7 @@ if ($SourceRoot) {
     'chrome/app/chromium_strings.grd',
     'chrome/app/chrome_command_ids.h',
     'chrome/browser/ui/toolbar/app_menu_model.cc',
+    'chrome/browser/chrome_content_browser_client_navigation_throttles.cc',
     'chrome/app/settings_chromium_strings.grdp',
     'chrome/common/url_constants.h',
     'chrome/common/webui_url_constants.h',
@@ -397,6 +400,20 @@ if ($SourceRoot) {
     }
   }
 
+  $onionGuardSource = Get-Content (Join-Path $resolvedSourceRoot 'chrome/browser/chrome_content_browser_client_navigation_throttles.cc') -Raw
+  foreach ($requiredOnionGuardToken in @(
+    'Ghosium Direct-mode onion navigation guard',
+    'GhosiumOnionNavigationThrottle',
+    'HasSwitch("ghosium-tor")',
+    'url.DomainIs("onion")',
+    'net::ERR_BLOCKED_BY_CLIENT',
+    'std::make_unique<GhosiumOnionNavigationThrottle>(registry)'
+  )) {
+    if (!$onionGuardSource.Contains($requiredOnionGuardToken)) {
+      throw "Ghosium Direct-mode onion guard is missing: $requiredOnionGuardToken"
+    }
+  }
+
   $torCommandIds = Get-Content (Join-Path $resolvedSourceRoot 'chrome/app/chrome_command_ids.h') -Raw
   $torAppMenu = Get-Content (Join-Path $resolvedSourceRoot 'chrome/browser/ui/toolbar/app_menu_model.cc') -Raw
   if (!$torCommandIds.Contains('IDC_NEW_GHOSIUM_TOR_WINDOW       34064')) {
@@ -422,6 +439,7 @@ if ($SourceRoot) {
     'Tor User Data',
     'Tor Runtime Data',
     'host-resolver-rules',
+    'MAP *.onion ~NOTFOUND',
     'disable-quic',
     'disable-background-networking',
     'disable_non_proxied_udp',
