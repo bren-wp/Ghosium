@@ -8,8 +8,9 @@
     "description": "Ghosium Browser is a fast, privacy-focused web browser by Brendigo."
   },
   "source": {
-    "snapshotRevision": "1693066",
-    "commit": "fac978ddceaae0358a2bd69e20a5156ec8dc86ab"
+    "engine": "Tor Browser / Firefox ESR",
+    "contract": "engine/tor-browser/windows-x64.json",
+    "chromiumFallbackAllowed": false
   },
   "productUrls": {
     "home": "https://ghosium.com/",
