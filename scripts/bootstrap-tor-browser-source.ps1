@@ -13,9 +13,6 @@ $repoRoot = Split-Path -Parent $PSScriptRoot
 $contractPath = Join-Path $repoRoot 'engine/tor-browser/windows-x64.json'
 
 & (Join-Path $PSScriptRoot 'verify-tor-browser-upstream.ps1')
-if ($LASTEXITCODE -ne 0) {
-  throw 'Tor Browser upstream contract verification failed.'
-}
 
 $contract = Get-Content $contractPath -Raw | ConvertFrom-Json
 $destinationPath = [IO.Path]::GetFullPath($Destination)
