@@ -1,12 +1,12 @@
-# Ghosium Browser 0.0.9 Architecture
+# Ghosium Browser 0.0.10 Architecture
 
-Ghosium 0.0.9 is a **Windows x64-only** browser product.
+Ghosium 0.0.10 is a **Windows x64-only** browser product.
 
 ## Engine boundary
 
 The active browser-engine baseline is Tor Browser 15.0.24 source, based on Firefox 140.17.0 ESR and Tor 0.4.9.13.
 
-The engine contract is stored in `engine/tor-browser/windows-x64.json`. It pins the official Tor Project source archive, archive SHA-256 and target platform. Chromium fallback is explicitly forbidden for the 0.0.9 release line.
+The engine contract is stored in `engine/tor-browser/windows-x64.json`. It pins the official Tor Project source archive, archive SHA-256 and target platform. Chromium fallback is explicitly forbidden for the 0.0.10 release line.
 
 The repository does not vendor the full Tor Browser source tree. It stores Ghosium-owned build, branding, packaging, verification and release tooling plus the immutable upstream contract.
 
