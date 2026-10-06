@@ -6,7 +6,7 @@
 
 **Ghosium Browser by Brendigo** is a privacy-focused **Windows x64** browser. The active product version is **0.0.9**.
 
-The active development direction is a Windows-only migration from the previous Chromium engine path to a pinned **Tor Browser / Firefox ESR** source baseline. Publication is fail-closed: Ghosium 0.0.9 must not be released until the Tor Browser-based Windows builder, runtime verification, Setup/Portable packaging, Authenticode signing and provenance gates are complete.
+The active development direction is a Windows-only migration to a pinned **Tor Browser / Firefox ESR** source baseline. Publication is fail-closed: Ghosium 0.0.9 must not be released until the Tor Browser-based Windows builder, runtime verification, Setup/Portable packaging, Authenticode signing and provenance gates are complete.
 
 ## Product identity
 
@@ -23,7 +23,7 @@ The active development direction is a Windows-only migration from the previous C
 
 ## Tor Browser / Firefox ESR engine direction
 
-`engine/tor-browser/windows-x64.json` pins the reviewed upstream source baseline. The bootstrap path verifies the official source archive SHA-256 before extraction and explicitly forbids a Chromium fallback.
+`engine/tor-browser/windows-x64.json` pins the reviewed upstream source baseline. The bootstrap path verifies the official source archive SHA-256 before extraction and explicitly forbids fallback to the retired engine path.
 
 Ghosium remains one browser product and preserves its own Brendigo/Ghosium identity. Upstream third-party source, licenses and required notices remain attributed to their original owners.
 
@@ -52,4 +52,4 @@ The checked-in stable update manifest remains fail-closed before canonical publi
 
 ## License and third-party rights
 
-Brendigo-authored Ghosium material is governed by the **Brendigo Proprietary Commercial Software License Agreement** in `LICENSE`. Tor Browser, Firefox ESR, Tor and every other third-party or open-source component remain governed by their own licenses and trademark terms. Required attribution is preserved in `THIRD_PARTY_NOTICES.md` and applicable bundled material.
+Brendigo-authored Ghosium material is governed by the **Brendigo Proprietary Commercial Software License Agreement** in `LICENSE`. Public repository visibility does not by itself grant an open-source license to Brendigo-authored proprietary material. Tor Browser, Firefox ESR, Tor and every other third-party or open-source component remain governed by their own licenses and trademark terms. Required attribution is preserved in `THIRD_PARTY_NOTICES.md` and applicable bundled material.
