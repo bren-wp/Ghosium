@@ -416,13 +416,18 @@ if ($SourceRoot) {
 
   $torCommandIds = Get-Content (Join-Path $resolvedSourceRoot 'chrome/app/chrome_command_ids.h') -Raw
   $torAppMenu = Get-Content (Join-Path $resolvedSourceRoot 'chrome/browser/ui/toolbar/app_menu_model.cc') -Raw
+  $torStrings = Get-Content (Join-Path $resolvedSourceRoot 'chrome/app/chromium_strings.grd') -Raw
+  if (!$torStrings.Contains('IDS_NEW_GHOSIUM_TOR_WINDOW') -or
+      !$torStrings.Contains('New Tor window')) {
+    throw 'Ghosium Tor menu branded string resource is missing.'
+  }
   if (!$torCommandIds.Contains('IDC_NEW_GHOSIUM_TOR_WINDOW       34064')) {
     throw 'Ghosium native Tor window command id is missing.'
   }
   foreach ($requiredTorMenuToken in @(
     'Ghosium native Tor menu entry',
     'IDC_NEW_GHOSIUM_TOR_WINDOW',
-    'u"New Tor window"',
+    'IDS_NEW_GHOSIUM_TOR_WINDOW',
     'tor_command.AppendSwitch("ghosium-tor")',
     'base::LaunchProcess(tor_command, base::LaunchOptions())'
   )) {
