@@ -45,5 +45,11 @@ if ([string]$contract.sha256 -ne 'c217a69a1c929a81d5217247eb10dc5306176d94b2ab79
 if ([string]$contract.sourceArchive -ne 'src-firefox-tor-browser-140.17.0esr-15.0-1-build4.tar.xz') {
   throw 'Pinned Tor Browser source archive name changed unexpectedly.'
 }
+if ([string]$contract.buildSystem.repository -ne 'https://gitlab.torproject.org/tpo/applications/tor-browser-build.git' -or
+    [string]$contract.buildSystem.branch -ne 'maint-15.0' -or
+    [string]$contract.buildSystem.commit -ne '137f3dcdb78a58f157c1f7e991463c600f630728' -or
+    [string]$contract.buildSystem.target -ne 'torbrowser-release-windows-x86_64') {
+  throw 'Pinned Tor Browser Windows build-system contract changed without review.'
+}
 
 Write-Host 'Ghosium Tor Browser/Firefox ESR Windows upstream contract: OK'
