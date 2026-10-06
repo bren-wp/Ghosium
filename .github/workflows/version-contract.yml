@@ -89,6 +89,7 @@ jobs:
                   release_ci_hotfix_files = {
                       '.github/workflows/release-marker-promotion-contract.yml',
                       '.github/workflows/tor-browser-windows-build.yml',
+            '.github/workflows/ghosium-0.0.3-production-release.yml',
                       '.github/workflows/version-contract.yml',
                   }
                   release_ci_hotfix = (
