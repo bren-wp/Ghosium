@@ -73,8 +73,8 @@ jobs:
           from pathlib import Path
 
           version = Path('VERSION').read_text(encoding='utf-8').strip()
-          if version != '0.0.9':
-              raise SystemExit(f'Expected Windows engine baseline 0.0.9, got {version!r}')
+          if version != '0.0.10':
+              raise SystemExit(f'Expected Windows engine baseline 0.0.10, got {version!r}')
 
           contract = json.loads(Path('engine/tor-browser/windows-x64.json').read_text(encoding='utf-8'))
           expected = {
@@ -121,11 +121,11 @@ jobs:
         run: |
           from pathlib import Path
 
-          production = Path('.github/workflows/ghosium-0.0.9-production-release.yml').read_text(encoding='utf-8')
+          production = Path('.github/workflows/ghosium-0.0.10-production-release.yml').read_text(encoding='utf-8')
           if 'full-source-windows-build.yml' in production:
               raise SystemExit(
-                  '0.0.9 production still dispatches the Chromium full-source workflow. '
+                  '0.0.10 production still dispatches the Chromium full-source workflow. '
                   'Switch production to tor-browser-windows-build.yml before publication.'
               )
           if 'tor-browser-windows-build.yml' not in production:
-              raise SystemExit('0.0.9 production does not reference the Tor Browser Windows builder.')
+              raise SystemExit('0.0.10 production does not reference the Tor Browser Windows builder.')
