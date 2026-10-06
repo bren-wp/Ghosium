@@ -26,7 +26,7 @@ jobs:
         run: |
           set -euo pipefail
 
-          runs_json="$(gh api "/repos/$GITHUB_REPOSITORY/actions/workflows/full-source-windows-build.yml/runs?branch=main&per_page=100")"
+          runs_json="$(gh api "/repos/$GITHUB_REPOSITORY/actions/workflows/tor-browser-windows-build.yml/runs?branch=main&per_page=100")"
           jq -r '.workflow_runs[]
             | select(.status == "queued" or .status == "in_progress" or .status == "waiting" or .status == "pending")
             | [.id, .head_sha] | @tsv' <<<"$runs_json" |
