@@ -1,48 +1,40 @@
 # Ghosium Browser 0.0.9 Architecture
 
-## Product scope
-
-Ghosium 0.0.9 is a **Windows x64** browser product with one public browser identity:
-
-```text
-Ghosium-Browser.exe
-Ghosium-Browser-Setup.exe
-Ghosium-Browser-Portable.exe
-```
+Ghosium 0.0.9 is a **Windows x64-only** browser product.
 
 ## Engine boundary
 
-The target engine baseline is the reviewed Tor Browser desktop source built on Firefox ESR. The exact upstream contract is stored in `engine/tor-browser/windows-x64.json`.
+The active browser-engine baseline is Tor Browser 15.0.24 source, based on Firefox 140.17.0 ESR and Tor 0.4.9.13.
 
-The migration contract is fail-closed:
+The engine contract is stored in `engine/tor-browser/windows-x64.json`. It pins the official Tor Project source archive, archive SHA-256 and target platform. Chromium fallback is explicitly forbidden for the 0.0.9 release line.
 
-- the upstream source archive is pinned by version, archive name and SHA-256;
-- source must come from the official Tor Project archive;
-- Chromium fallback is forbidden;
-- production publication is blocked until the Windows builder consumes the Tor Browser / Firefox ESR source path;
-- Ghosium branding remains independent from Tor Project branding;
-- required upstream licenses and notices remain intact.
+The repository does not vendor the full Tor Browser source tree. It stores Ghosium-owned build, branding, packaging, verification and release tooling plus the immutable upstream contract.
 
-## Single-browser privacy model
+## Windows process layout
 
-Ghosium remains one browser application. Normal web destinations and Tor-routed destinations are capabilities of the same product, not separate branded browsers.
+The public executable is `Ghosium-Browser.exe`.
 
-The privacy design must preserve route isolation, DNS/proxy fail-closed behavior, browser-state separation where required, certificate validation, browser sandboxing and Tor Browser anti-fingerprinting protections that are part of the reviewed upstream baseline.
+The launcher resolves the packaged engine at:
 
-## Profile and Portable boundary
+`runtime/firefox.exe`
 
-Installed profile root:
+The internal upstream executable name is an implementation detail. It is not a second public browser product.
 
-```text
-%LOCALAPPDATA%\Brendigo\Ghosium\User Data
-```
+Installed profile data is stored under the Brendigo/Ghosium application-data namespace. Portable profile data is stored beside the Portable executable in `Ghosium-Portable-Data`.
 
-Portable stores its profile beside the Portable executable through the Ghosium launcher contract. Runtime extraction is version-cached and promoted only after a ready marker proves extraction completed successfully.
+The launcher passes the selected profile through Firefox's `-profile <path>` interface and blocks caller attempts to override protected profile/debugging arguments.
 
-## Release trust boundary
+## Packaging
 
-The stable updater is disabled until canonical publication. Windows production requires exact-source provenance, runtime smoke tests, Setup/Portable lifecycle tests, valid Authenticode signatures, update-manifest binding and SHA-256 evidence.
+The two public distribution packages are:
 
-## Legal boundary
+- `Ghosium-Browser-Setup.exe`
+- `Ghosium-Browser-Portable.exe`
 
-Brendigo-authored Ghosium material follows the repository product license. Tor Browser, Firefox ESR, Tor and other third-party components remain under their respective licenses and trademark terms.
+Both are generated from the same verified runtime stage and exact source identity. Production publication requires Authenticode signing, provenance evidence and SHA-256 manifests.
+
+## Privacy model
+
+Ghosium uses Tor Browser source as the privacy/anonymity baseline. The objective is to preserve Tor Browser-class first-party isolation and fingerprint-resistance behavior while applying Ghosium branding and product integration.
+
+The release process must fail closed if the expected Tor Browser source identity, Firefox ESR identity, Tor identity or Windows target changes without review.
