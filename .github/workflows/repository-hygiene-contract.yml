@@ -78,7 +78,7 @@ jobs:
           from pathlib import Path
           dispatcher = Path('.github/workflows/release-request-dispatch.yml').read_text(encoding='utf-8')
           builder = Path('.github/workflows/tor-browser-windows-build.yml').read_text(encoding='utf-8')
-          production = Path('.github/workflows/ghosium-0.0.11-production-release.yml').read_text(encoding='utf-8')
+          production = Path('.github/workflows/ghosium-0.0.3-production-release.yml').read_text(encoding='utf-8')
           supervisor = Path('.github/workflows/release-safety-supervisor.yml').read_text(encoding='utf-8')
           for required in ("'ghosium/release/**'", "'.release/*.request'", 'tor-browser-windows-build.yml'):
               if required not in dispatcher:
