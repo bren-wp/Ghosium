@@ -2,24 +2,24 @@
 
 ## Scope
 
-Contributions must preserve the current source-built Windows architecture, Android application architecture and privacy/security guarantees.
+Ghosium 0.0.3 is a Windows x64 browser built from the pinned Tor Browser / Firefox ESR source baseline. Contributions must preserve the product's privacy, security, branding and fail-closed Tor runtime guarantees.
 
 ## Windows rules
 
-- Ghosium-owned desktop executable code remains C++20.
-- Do not add Tauri, WebView2 wrappers, Rust browser cores or JavaScript desktop browser runtimes.
-- Do not add switches that disable sandboxing, certificate validation or browser security isolation.
-- Preserve native user, policy and extension precedence where applicable.
-- Changes to Setup/Portable behavior require installer compilation and lifecycle/profile tests.
+- Ghosium-owned desktop launcher code remains C++20.
+- The active engine is Tor Browser / Firefox ESR; do not reintroduce the retired browser-engine source pipeline.
+- Do not add Electron, Tauri, WebView2 or another wrapper as the browser core.
+- Do not disable certificate validation, browser security boundaries or Tor routing protections to make a build pass.
+- Preserve the public executable identity `Ghosium-Browser.exe`.
+- Preserve the existing Ghosium logo and New Tab visual identity unless a design change is explicitly requested.
+- Setup/Portable changes require compilation plus lifecycle/profile tests.
+- Tor runtime changes require pinned source/archive provenance and SHA-256 verification.
 
-## Android rules
+## Source branding and UI
 
-- Android package identity remains `com.brendigo.ghosium` unless a coordinated migration is explicitly approved.
-- Minimum supported API for 0.0.3 is 29; compile/target SDK is 36.
-- Keep third-party cookies blocked, mixed content blocked, direct WebView file/content access disabled, Safe Browsing enabled and TLS errors fail closed.
-- Do not add analytics, advertising or crash-reporting SDKs without an explicit product/privacy decision.
-- Do not commit Android production keystores, passwords or private keys.
-- New browser behavior should have unit or lint/contract coverage where practical.
+The canonical Ghosium visual assets live under `extension/` and `engine/branding/`. The Tor Browser source overlay ports the existing New Tab and branding assets into the Firefox source tree before compilation.
+
+Changes must not silently replace the existing Ghosium design with upstream browser branding.
 
 ## Web-service rules
 
@@ -27,7 +27,7 @@ Contributions must preserve the current source-built Windows architecture, Andro
 
 ## Branding and third-party identity
 
-User-facing Ghosium-owned surfaces use Ghosium branding. Required upstream legal attribution remains in designated notice/license files. External services such as Google Search must be identified accurately.
+User-facing Ghosium-owned surfaces use Ghosium branding. Required Tor Browser, Firefox ESR, Tor and other third-party legal attribution remains in designated notice/license files.
 
 ## Release assets
 
@@ -36,7 +36,8 @@ The canonical 0.0.3 end-user assets are:
 ```text
 Ghosium-Browser-Setup.exe
 Ghosium-Browser-Portable.exe
-Ghosium-Browser-Android.apk
+GHOSIUM-TOR-BROWSER-WINDOWS.json
+SHA256SUMS.txt
 ```
 
-A production artifact is valid only after the exact-commit platform build, security, signing and provenance gates succeed.
+A production artifact is valid only after the exact-commit source build, Tor runtime staging, Windows packaging, security, signing and provenance gates succeed.
