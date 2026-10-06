@@ -1,9 +1,6 @@
 name: Ghosium 0.0.7 Quality Gate
 
 on:
-  pull_request:
-    branches:
-      - main
   push:
     branches:
       - 'ghosium/0.0.7-*'
