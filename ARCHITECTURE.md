@@ -1,13 +1,19 @@
-# Ghosium Browser 0.0.7 Architecture
+# Ghosium Browser 0.0.8 Architecture
 
 ## Product scope
 
-Ghosium 0.0.7 has two first-class client targets sharing one release identity:
+Ghosium 0.0.8 has two first-class client targets sharing one release identity:
 
 - Windows x64 source-built browser, Setup and Portable distribution;
 - Android 10+ native browser shell using the platform WebView.
 
-Both targets are versioned `0.0.7` and are published from the same Git commit.
+Both targets are versioned `0.0.8` and are published from the same Git commit.
+
+## 0.0.8 single-browser privacy architecture
+
+The Windows privacy architecture remains **one Ghosium Browser application**. Direct web access and Tor routing are network capabilities inside the same `Ghosium-Browser.exe`; they are not separate browser products or separate public executables. Tor-routed state is internally isolated to prevent correlation with Direct browsing, while the visible Ghosium design/UI/UX remains the same.
+
+The detailed contract is documented in `docs/SINGLE_BROWSER_PRIVACY.md`.
 
 ## Windows source boundary
 
@@ -41,9 +47,9 @@ Android privacy/security configuration blocks third-party cookies, forbids mixed
 
 Windows native update validation enforces the exact first-party HTTPS endpoint, package size/SHA-256, Authenticode publisher and signed PE metadata before Setup execution.
 
-Android 0.0.7 does not introduce an unsigned self-updater. The release APK is signed with the stable Brendigo Android identity, verified with `apksigner`, and its package/version/hash/signer fingerprint are recorded as release evidence.
+Android 0.0.8 does not introduce an unsigned self-updater. The release APK is signed with the stable Brendigo Android identity, verified with `apksigner`, and its package/version/hash/signer fingerprint are recorded as release evidence.
 
-The 0.0.7 orchestrator will not start Windows production release work until Android production signing/build verification has succeeded. Independently, the canonical Windows workflow refuses production execution on `main` unless the exact promoted release marker exists; a release-safety supervisor cancels stale or unpromoted main dispatches. The release is considered complete only after the same GitHub release contains Setup, Portable and Android APK.
+The 0.0.8 orchestrator will not start Windows production release work until Android production signing/build verification has succeeded. Independently, the canonical Windows workflow refuses production execution on `main` unless the exact promoted release marker exists; a release-safety supervisor cancels stale or unpromoted main dispatches. The release is considered complete only after the same GitHub release contains Setup, Portable and Android APK.
 
 ## Performance model
 

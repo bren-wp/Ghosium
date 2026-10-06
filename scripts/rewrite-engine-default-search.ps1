@@ -12,7 +12,7 @@ $sourceRootResolved = (Resolve-Path $SourceRoot).Path
 
 $actualRevision = (& git -C $sourceRootResolved rev-parse HEAD).Trim()
 if ($LASTEXITCODE -ne 0 -or $actualRevision -ne $expectedRevision) {
-  throw "Refusing to verify default search on an unpinned checkout. Expected $expectedRevision; found $actualRevision"
+  throw "Refusing to rewrite default search on an unpinned checkout. Expected $expectedRevision; found $actualRevision"
 }
 
 $target = Join-Path $sourceRootResolved 'components/search_engines/template_url_prepopulate_data.cc'
@@ -21,69 +21,61 @@ if (!(Test-Path $target -PathType Leaf)) {
 }
 
 $text = [IO.File]::ReadAllText($target)
-
-# Verify the reviewed Google fallback structurally instead of requiring one
-# whitespace-identical source rendering. Chromium frequently reflows C++
-# parameters without changing behavior; an exact multiline Contains() check can
-# therefore reject the same pinned implementation. Keep this fail-closed by
-# anchoring the exact function and requiring every behavior-defining token.
 $functionPattern = '(?ms)std::unique_ptr<TemplateURLData>\s+GetPrepopulatedFallbackSearch\s*\((?<parameters>.*?)\)\s*\{(?<body>.*?)\n\}'
 $functionMatch = [regex]::Match($text, $functionPattern)
 if (!$functionMatch.Success) {
-  throw 'Pinned Chromium Google fallback function shape changed; refusing an unreviewed default-search modification.'
+  throw 'Pinned Chromium fallback-search function shape changed; refusing an unreviewed default-search modification.'
 }
 
 $parameters = $functionMatch.Groups['parameters'].Value
-$body = $functionMatch.Groups['body'].Value
-foreach ($requiredParameter in @(
-  'PrefService& prefs',
-  'regional_prepopulated_engines'
-)) {
+foreach ($requiredParameter in @('PrefService& prefs', 'regional_prepopulated_engines')) {
   if (!$parameters.Contains($requiredParameter)) {
-    throw "Pinned Chromium Google fallback parameters changed; missing reviewed token: $requiredParameter"
+    throw "Pinned Chromium fallback-search parameters changed; missing reviewed token: $requiredParameter"
   }
 }
 
-foreach ($requiredBodyToken in @(
-  'FindPrepopulatedEngineInternal',
-  'prefs',
-  'regional_prepopulated_engines',
-  'google.id',
-  '/*use_first_as_fallback=*/true'
-)) {
-  if (!$body.Contains($requiredBodyToken)) {
-    throw "Pinned Chromium Google fallback behavior changed; missing reviewed token: $requiredBodyToken"
-  }
+$body = [regex]::Replace($functionMatch.Groups['body'].Value, '\s+', ' ').Trim()
+$alreadyHardened = $body.Contains('PrepopulatedEngineToTemplateURLData(&duckduckgo);')
+$upstreamGoogle = $body.Contains('FindPrepopulatedEngineInternal') -and $body.Contains('google.id') -and $body.Contains('/*use_first_as_fallback=*/true')
+
+if ($upstreamGoogle) {
+  $replacement = @'
+std::unique_ptr<TemplateURLData> GetPrepopulatedFallbackSearch(
+    PrefService& prefs,
+    const std::vector<raw_ptr<const PrepopulatedEngine>>&
+        regional_prepopulated_engines) {
+  // Ghosium privacy baseline: never use a Google-owned fallback provider.
+  // User-selected providers still keep normal Chromium precedence elsewhere.
+  return PrepopulatedEngineToTemplateURLData(&duckduckgo);
+}
+'@
+  $updated = [regex]::Replace($text, $functionPattern, $replacement, 1)
+  [IO.File]::WriteAllText($target, $updated, [Text.UTF8Encoding]::new($false))
+  $text = $updated
+} elseif (!$alreadyHardened) {
+  throw 'Pinned Chromium fallback-search behavior changed; expected the reviewed Google fallback or exact Ghosium DuckDuckGo fallback.'
 }
 
-# The reviewed fallback is a single direct return expression. Do not silently
-# accept additional provider selection, mutation, branching, or side effects.
-$normalizedBody = [regex]::Replace($body, '\s+', ' ').Trim()
-if ($normalizedBody -notmatch '^return\s+FindPrepopulatedEngineInternal\s*\(' -or
-    $normalizedBody -notmatch '\);$') {
-  throw 'Pinned Chromium Google fallback body is no longer the reviewed direct return expression.'
+$finalMatch = [regex]::Match($text, $functionPattern)
+if (!$finalMatch.Success) {
+  throw 'Ghosium fallback-search function disappeared after rewrite.'
 }
-if ($normalizedBody -match '\b(if|switch|for|while)\s*\(') {
-  throw 'Pinned Chromium Google fallback gained unreviewed control flow.'
+$finalBody = [regex]::Replace($finalMatch.Groups['body'].Value, '\s+', ' ').Trim()
+if (!$finalBody.Contains('PrepopulatedEngineToTemplateURLData(&duckduckgo);')) {
+  throw 'DuckDuckGo is not the Ghosium fallback search provider.'
 }
-
-foreach ($forbidden in @(
-  'Ghosium Search',
-  'search.ghosium.com',
-  'prepopulate_id = 1101',
-  '9e993bd9-c256-42d7-a1b1-000000001101'
-)) {
-  if ($text.Contains($forbidden)) {
-    throw "Retired Ghosium Search integration remains in engine source: $forbidden"
+foreach ($forbidden in @('google.id', 'use_first_as_fallback')) {
+  if ($finalBody.Contains($forbidden)) {
+    throw "Google-owned fallback behavior remains active in Ghosium: $forbidden"
   }
 }
 
 $thirdPartyChanges = & git -C $sourceRootResolved status --porcelain=v1 -- third_party
 if ($LASTEXITCODE -ne 0) {
-  throw 'Unable to verify third_party source state after default-search verification.'
+  throw 'Unable to verify third_party source state after default-search rewrite.'
 }
 if ($thirdPartyChanges) {
-  throw 'Default-search verification found modified third_party sources; refusing to continue.'
+  throw 'Default-search rewrite modified third_party sources; refusing to continue.'
 }
 
-Write-Host 'Google Search remains the reviewed Chromium distribution fallback: OK'
+Write-Host 'Ghosium fallback search hardened: DuckDuckGo built-in fallback active; Google fallback disabled.'

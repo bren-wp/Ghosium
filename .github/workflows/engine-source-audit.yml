@@ -10,6 +10,8 @@ on:
       - 'VERSION'
       - 'engine/**'
       - 'scripts/*engine*.ps1'
+      - 'scripts/stage-tor-runtime.ps1'
+      - 'scripts/verify-single-browser-privacy.ps1'
       - 'scripts/generate-engine-brand-assets.py'
       - '.github/workflows/engine-source-audit.yml'
       - '.github/workflows/full-source-windows-build.yml'
@@ -22,6 +24,8 @@ on:
       - 'VERSION'
       - 'engine/**'
       - 'scripts/*engine*.ps1'
+      - 'scripts/stage-tor-runtime.ps1'
+      - 'scripts/verify-single-browser-privacy.ps1'
       - 'scripts/generate-engine-brand-assets.py'
       - '.github/workflows/engine-source-audit.yml'
       - '.github/workflows/full-source-windows-build.yml'
@@ -58,6 +62,22 @@ jobs:
             'scripts/rewrite-engine-product-version.ps1',
             'scripts/rewrite-engine-version-updater.ps1',
             'scripts/rewrite-engine-public-surfaces.ps1',
+            'scripts/rewrite-engine-browser-signin.ps1',
+            'scripts/verify-engine-browser-signin.ps1',
+            'scripts/rewrite-engine-profile-picker-local-only.ps1',
+            'scripts/verify-engine-profile-picker-local-only.ps1',
+            'scripts/rewrite-engine-local-profile-surfaces.ps1',
+            'scripts/verify-engine-local-profile-surfaces.ps1',
+            'scripts/rewrite-engine-app-menu-account-surfaces.ps1',
+            'scripts/verify-engine-app-menu-account-surfaces.ps1',
+            'scripts/rewrite-engine-disable-unowned-promos.ps1',
+            'scripts/verify-engine-disable-unowned-promos.ps1',
+            'scripts/rewrite-engine-upstream-public-actions.ps1',
+            'scripts/verify-engine-upstream-public-actions.ps1',
+            'scripts/rewrite-engine-disable-google-services.ps1',
+            'scripts/rewrite-engine-tor-route.ps1',
+            'scripts/rewrite-engine-onion-guard.ps1',
+            'scripts/rewrite-engine-tor-menu.ps1',
             'scripts/rewrite-engine-public-branding-complete.ps1',
             'scripts/verify-engine-public-branding-complete.ps1',
             'scripts/verify-engine-public-surfaces.ps1',
@@ -70,7 +90,9 @@ jobs:
             'scripts/verify-engine-fork.ps1',
             'scripts/verify-engine-windows-executable.ps1',
             'scripts/configure-engine-build.ps1',
-            'scripts/verify-engine-build-output.ps1'
+            'scripts/verify-engine-build-output.ps1',
+            'scripts/stage-tor-runtime.ps1',
+            'scripts/verify-single-browser-privacy.ps1'
           )) {
             $tokens = $null
             $errors = $null
@@ -244,6 +266,29 @@ jobs:
           /chrome/installer/setup/install_worker.cc
           /chrome/installer/util/util_constants.h
           /chrome/browser/browser_about_handler.cc
+          /chrome/app/chrome_command_ids.h
+          /chrome/app/chrome_main_delegate.cc
+          /chrome/browser/chrome_content_browser_client_navigation_throttles.cc
+          /chrome/browser/domain_reliability/service_factory.cc
+          /chrome/browser/media/webrtc/webrtc_log_uploader.cc
+          /chrome/browser/resources/intro/
+          /chrome/browser/signin/account_consistency_mode_manager.cc
+          /chrome/browser/ui/browser_actions.cc
+          /chrome/browser/ui/browser_command_controller.cc
+          /chrome/browser/ui/browser_ui_prefs.cc
+          /chrome/browser/ui/profiles/profile_view_utils.cc
+          /chrome/browser/ui/toolbar/app_menu_model.cc
+          /chrome/browser/ui/views/profiles/profile_menu_view.cc
+          /chrome/browser/ui/views/toolbar/app_menu.cc
+          /chrome/browser/ui/webui/intro/intro_ui.cc
+          /components/autofill/core/browser/crowdsourcing/autofill_crowdsourcing_manager.cc
+          /components/crash/core/app/crash_reporter_client.cc
+          /components/desktop_to_mobile_promos/features.cc
+          /components/gcm_driver/gcm_driver_desktop.cc
+          /components/network_time/network_time_tracker.cc
+          /components/subscription_eligibility/subscription_eligibility_service.cc
+          /components/variations/net/variations_http_headers.cc
+          /components/variations/service/variations_service.cc
           /chrome/browser/extensions/extension_ui_util.cc
           /chrome/browser/resources/settings/
           /chrome/browser/resources/new_tab_page/
@@ -325,13 +370,24 @@ jobs:
           grep -F 'AppendArgNative(L"/DELETESELF")' "$updater"
 
           grep -F 'Customize Ghosium' "$src/chrome/app/chromium_strings.grd"
-          grep -F 'google.id,' "$src/components/search_engines/template_url_prepopulate_data.cc"
-          grep -F '/*use_first_as_fallback=*/true' "$src/components/search_engines/template_url_prepopulate_data.cc"
-          if grep -Fq 'Ghosium Search' "$src/components/search_engines/template_url_prepopulate_data.cc" || \
+          grep -F 'return PrepopulatedEngineToTemplateURLData(&duckduckgo);' "$src/components/search_engines/template_url_prepopulate_data.cc"
+          if grep -Fq 'google.id,' "$src/components/search_engines/template_url_prepopulate_data.cc" || \
+             grep -Fq '/*use_first_as_fallback=*/true' "$src/components/search_engines/template_url_prepopulate_data.cc" || \
+             grep -Fq 'Ghosium Search' "$src/components/search_engines/template_url_prepopulate_data.cc" || \
              grep -Fq 'search.ghosium.com' "$src/components/search_engines/template_url_prepopulate_data.cc"; then
-            echo 'Retired Ghosium Search source integration returned.' >&2
+            echo 'Google/retired search fallback source integration returned.' >&2
             exit 1
           fi
+
+          grep -F 'Ghosium privacy: Google Cloud Messaging is not a browser dependency.' "$src/components/gcm_driver/gcm_driver_desktop.cc"
+          grep -F 'Ghosium privacy: no remote variations/field-trial seed fetching.' "$src/components/variations/service/variations_service.cc"
+          grep -F 'Ghosium privacy: never attach experiment identifiers to web requests.' "$src/components/variations/net/variations_http_headers.cc"
+          grep -F 'Ghosium privacy: do not query or upload form structure to Google Autofill.' "$src/components/autofill/core/browser/crowdsourcing/autofill_crowdsourcing_manager.cc"
+          grep -F 'Ghosium integrated Tor route' "$src/chrome/app/chrome_main_delegate.cc"
+          grep -F 'MAP *.onion ~NOTFOUND' "$src/chrome/app/chrome_main_delegate.cc"
+          grep -F 'Ghosium Direct-mode onion navigation guard' "$src/chrome/browser/chrome_content_browser_client_navigation_throttles.cc"
+          grep -F 'IDS_NEW_GHOSIUM_TOR_WINDOW' "$src/chrome/browser/ui/toolbar/app_menu_model.cc"
+          grep -F 'IDS_NEW_GHOSIUM_TOR_WINDOW' "$src/chrome/app/chromium_strings.grd"
           grep -F 'kCompanyPathName[] = L"Brendigo"' "$src/chrome/install_static/chromium_install_modes.h"
           grep -F 'kProductPathName[] = L"Ghosium"' "$src/chrome/install_static/chromium_install_modes.h"
           grep -F '$root_out_dir/Ghosium-Browser.exe' "$src/chrome/BUILD.gn"

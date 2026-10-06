@@ -58,11 +58,13 @@ Replace-RequiredRegex `
 # Force-signin is an upstream browser-account policy surface. With no Ghosium
 # account service it must not redirect local profile creation into a dead GAIA
 # flow. Enterprise web authentication and ordinary site login remain untouched.
-Replace-RequiredRegex `
-  -Pattern '(?s)html_source->AddBoolean\("isForceSigninEnabled",\s*signin_util::IsForceSigninEnabled\(\)\);' `
-  -Replacement 'html_source->AddBoolean("isForceSigninEnabled", false);' `
-  -AlreadyPresent 'html_source->AddBoolean("isForceSigninEnabled", false);' `
-  -Description 'Profile Picker force-signin disablement'
+for ($pass = 1; $pass -le 2; $pass++) {
+  Replace-RequiredRegex `
+    -Pattern '(?s)html_source->AddBoolean\("isForceSigninEnabled",\s*signin_util::IsForceSigninEnabled\(\)\);' `
+    -Replacement 'html_source->AddBoolean("isForceSigninEnabled", false);' `
+    -AlreadyPresent 'html_source->AddBoolean("isForceSigninEnabled", false);' `
+    -Description "Profile Picker force-signin disablement pass $pass"
+}
 
 $thirdPartyChanges = & git -C $sourceRootResolved status --porcelain=v1 -- third_party
 if ($LASTEXITCODE -ne 0) {

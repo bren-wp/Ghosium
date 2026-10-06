@@ -1,46 +1,31 @@
 # Changelog
 
-## 0.0.7 — Windows + Android release candidate
+## 0.0.8 — Single-browser privacy and integrated Tor foundation
 
-### Windows
+### Windows privacy and network routing
 
-- Added a fail-closed production marker guard to the canonical full-source Windows workflow before self-hosted builder allocation, signing or publication.
-- Added a release-safety supervisor that cancels queued/in-progress main full-source runs whose source commit does not contain its exact promoted release marker.
-- Retired the obsolete historical production dispatcher that could fire when its old marker was deleted and prematurely dispatch the current VERSION on main.
-- Fixed the canonical production Portable packager so it preserves the private `--ghosium-portable-profile` launcher handoff instead of compiling the wrapper with a filtered public `--user-data-dir` override.
-- Hardened the installer contract fixture to record Portable runtime arguments and verify that the adjacent private profile switch is appended after caller-supplied arguments.
-- Unified the installed profile contract at `%LOCALAPPDATA%\Brendigo\Ghosium\User Data`.
-- Fixed Portable profile isolation so the hardened launcher, rather than a filtered public `--user-data-dir` override, owns the profile path.
-- Reworked Portable packaging around a versioned runtime cache with staging, atomic promotion and a ready marker.
-- Avoided re-extracting the full Portable runtime on every launch.
-- Added recovery for interrupted/stale Portable preparation and concurrent extraction races.
-- Hardened launcher noninteractive behavior so QA/headless failures return an exit code instead of blocking on a modal dialog.
-- Added C++20 launcher compilation/self-test and Setup/Portable package execution coverage to the 0.0.7 quality gate.
-- Fixed canonical NSIS invocation to use absolute script paths, eliminating the historical duplicated installer asset-path workaround.
+- Kept Ghosium as one Windows browser application and one public `Ghosium-Browser.exe`; Tor is an integrated network route rather than a second browser product.
+- Added a native **New Tor window** command to the existing Ghosium app menu using the same browser executable and existing UI model.
+- Added a pinned Tor Expert Bundle 15.0.24 Windows x64 runtime contract with official Tor Project distribution URL and release-pinned SHA-256 verification.
+- Added canonical release-stage Tor packaging and provenance under `Tor/` without changing the public Setup/Portable product identity.
+- Added fail-closed Tor startup with isolated Tor user data/runtime data, SOCKS5 routing, system-DNS blocking, QUIC disablement and non-proxied WebRTC UDP blocking.
+- Added Direct-mode `.onion` DNS blocking plus a navigation throttle so `.onion` requests cannot silently leave through the normal network path.
+- Added Tor-process ownership binding so the bundled Tor process terminates with its owning Ghosium browser process.
 
-### Android
+### Zero-background-Google hardening
 
-- Added the native Ghosium Android application (`com.brendigo.ghosium`) for Android 10+/API 29+.
-- Added Ghosium Material UI with address/search input, Back, Forward, Home and Reload controls.
-- Added local New Tab, EN/HR resources, downloads, file chooser, fullscreen media, Desktop Site, Find in Page, Share and clear-browsing-data controls.
-- Added renderer-process recovery and activity state restoration.
-- Blocked third-party cookies and mixed content, disabled WebView file/content access, kept Safe Browsing enabled and made TLS errors fail closed.
-- Added explicit confirmation before handing non-HTTP(S) schemes to external applications.
-- Fixed host/port URL resolution such as `localhost:8443` and kept URL encoding compatible with API 29.
-- Disabled Android cloud backup and device-to-device transfer for browser-local data.
-- Added unit tests, lint-as-error enforcement and release/minification verification.
+- Replaced the Google fallback search path with the built-in DuckDuckGo provider and disabled remote search suggestions by default.
+- Kept Google/YouTube/Gmail available as ordinary user-initiated websites while forbidding browser-owned background Google service traffic.
+- Disabled Google Cloud Messaging, Domain Reliability uploads, remote network-time queries, variations/field-trial seed fetching and experiment request headers.
+- Disabled upstream crash upload, WebRTC diagnostic upload and Google Autofill crowdsourcing network requests.
+- Preserved core browser security invariants including sandboxing, site/process isolation and TLS/certificate validation.
 
-### Release engineering and documentation
+### QA, release and legal
 
-- Added bounded Chromium bootstrap process execution with explicit timeouts, process-tree termination and heartbeat logging so hosted source builds fail deterministically instead of hanging indefinitely.
-- Extended the source-builder contract to enforce bootstrap timeout and heartbeat invariants.
+- Added a fast single-browser privacy/Tor repository contract and integrated it into the 0.0.8 PR quality gate.
+- Extended the full source verifier with Tor routing, Direct-mode onion guard and background-service hardening assertions.
+- Added Tor Project attribution and updated privacy documentation for integrated Tor routing and DuckDuckGo fallback behavior.
+- Advanced Windows, Android, built-in extension, Store metadata and updater metadata to product version 0.0.8.
+- Added 0.0.8 Android release-candidate and production orchestration workflows while keeping the checked-in stable updater fail-closed before publication.
 
-- Fixed the release-marker promotion race condition so exact-SHA Windows candidates are awaited instead of producing a false CI failure while still running.
-
-- Synchronized Ghosium Privacy Store metadata with product version 0.0.7.
-- Added a production orchestrator that requires a stable signed Android APK before dispatching the canonical signed Windows full-source release.
-- Added Android release provenance and final three-asset release verification.
-- Added an unsigned Android release-candidate gate that proves lint/minification/release assembly without exposing the production private key.
-- Updated README, release procedure, architecture, build, privacy, security, performance, contribution and engine documentation for 0.0.7.
-
-> Publication is complete only when the immutable `ghosium-v0.0.7` release contains verified Setup, Portable and Android APK assets for the exact release commit.
+> 0.0.8 remains a release candidate until exact-commit source build, runtime, Setup/Portable, Android, signing and provenance gates are green.

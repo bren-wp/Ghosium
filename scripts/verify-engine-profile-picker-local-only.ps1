@@ -30,15 +30,17 @@ foreach ($required in @(
   }
 }
 
-# The Glic block already contains a static false for force sign-in upstream. The
-# normal Profile Picker block must also be static false, so two occurrences are
-# expected after the Ghosium transform.
+# Chromium 155 exposes force-signin before the Glic branch and again in the
+# normal picker branch. Ghosium must force both public paths to static false.
 $forceSigninFalseCount = [regex]::Matches(
   $text,
   'html_source->AddBoolean\("isForceSigninEnabled", false\);'
 ).Count
-if ($forceSigninFalseCount -lt 2) {
-  throw "Profile Picker force-signin is not disabled in every public picker variant; found $forceSigninFalseCount static false occurrence(s)."
+if ($forceSigninFalseCount -ne 2) {
+  throw "Profile Picker force-signin contract expects exactly two static false gates; found $forceSigninFalseCount."
+}
+if ($text -match 'signin_util::IsForceSigninEnabled\(\)') {
+  throw 'A dynamic Chromium force-signin gate remains in the Ghosium Profile Picker.'
 }
 
 foreach ($forbidden in @(

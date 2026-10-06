@@ -189,12 +189,12 @@ if ($LASTEXITCODE -ne 0) {
   throw 'Ghosium first-party product link routing failed.'
 }
 
-# Preserve Chromium's reviewed Google Search fallback. This is a no-op source
-# guard: explicit user choices, policy and extension overrides keep their native
-# precedence and no Ghosium-owned search provider is injected.
+# Replace Chromium's Google-owned fallback search path with Ghosium's reviewed
+# privacy fallback. Explicit user choices, policy and extension overrides keep
+# their normal native precedence.
 & (Join-Path $PSScriptRoot 'rewrite-engine-default-search.ps1') -SourceRoot $sourceRootResolved
 if ($LASTEXITCODE -ne 0) {
-  throw 'Google Search fallback verification failed.'
+  throw 'Ghosium privacy fallback-search integration failed.'
 }
 
 # Rebrand Windows install paths, Default Programs identities, document ProgIDs
@@ -253,6 +253,39 @@ if ($LASTEXITCODE -ne 0) {
   throw 'Ghosium public-surface branding failed.'
 }
 
+# Make browser identity local-first: remove Google/GAIA browser sign-in, Sync,
+# account-management, cloud/profile promotion and Google AI entry points while
+# preserving ordinary website authentication and Ghosium local customization.
+$privacySurfaceTransforms = @(
+  'rewrite-engine-browser-signin.ps1',
+  'rewrite-engine-profile-picker-local-only.ps1',
+  'rewrite-engine-local-profile-surfaces.ps1',
+  'rewrite-engine-app-menu-account-surfaces.ps1',
+  'rewrite-engine-disable-unowned-promos.ps1',
+  'rewrite-engine-upstream-public-actions.ps1'
+)
+foreach ($privacyTransform in $privacySurfaceTransforms) {
+  & (Join-Path $PSScriptRoot $privacyTransform) -SourceRoot $sourceRootResolved
+  if ($LASTEXITCODE -ne 0) {
+    throw "Ghosium privacy surface transform failed: $privacyTransform"
+  }
+}
+
+$privacySurfaceVerifiers = @(
+  'verify-engine-browser-signin.ps1',
+  'verify-engine-profile-picker-local-only.ps1',
+  'verify-engine-local-profile-surfaces.ps1',
+  'verify-engine-app-menu-account-surfaces.ps1',
+  'verify-engine-disable-unowned-promos.ps1',
+  'verify-engine-upstream-public-actions.ps1'
+)
+foreach ($privacyVerifier in $privacySurfaceVerifiers) {
+  & (Join-Path $PSScriptRoot $privacyVerifier) -SourceRoot $sourceRootResolved
+  if ($LASTEXITCODE -ne 0) {
+    throw "Ghosium privacy surface verification failed: $privacyVerifier"
+  }
+}
+
 # Sweep every materialized first-party GRIT/XTB message body after the targeted
 # transforms. Only visible text segments are changed; XML tags/placeholders,
 # source identifiers, build targets and the explicit legal allowlist are kept.
@@ -266,6 +299,31 @@ if ($LASTEXITCODE -ne 0) {
 & (Join-Path $PSScriptRoot 'rewrite-engine-performance-defaults.ps1') -SourceRoot $sourceRootResolved
 if ($LASTEXITCODE -ne 0) {
   throw 'Ghosium performance-default rewrite failed.'
+}
+
+# Remove browser-owned Google background service traffic while preserving core
+# browser security invariants such as sandboxing, TLS and process isolation.
+& (Join-Path $PSScriptRoot 'rewrite-engine-disable-google-services.ps1') -SourceRoot $sourceRootResolved
+if ($LASTEXITCODE -ne 0) {
+  throw 'Ghosium background Google-service hardening failed.'
+}
+
+# Add the optional Tor-routed session to the same Ghosium Browser executable.
+# The route is fail-closed, uses an isolated profile and never creates a second
+# branded browser application.
+& (Join-Path $PSScriptRoot 'rewrite-engine-tor-route.ps1') -SourceRoot $sourceRootResolved
+if ($LASTEXITCODE -ne 0) {
+  throw 'Ghosium integrated Tor route rewrite failed.'
+}
+
+& (Join-Path $PSScriptRoot 'rewrite-engine-onion-guard.ps1') -SourceRoot $sourceRootResolved
+if ($LASTEXITCODE -ne 0) {
+  throw 'Ghosium Direct-mode onion navigation hardening failed.'
+}
+
+& (Join-Path $PSScriptRoot 'rewrite-engine-tor-menu.ps1') -SourceRoot $sourceRootResolved
+if ($LASTEXITCODE -ne 0) {
+  throw 'Ghosium native Tor menu integration failed.'
 }
 
 # Convert the complete production WebUI namespace after all targeted branding
@@ -301,4 +359,4 @@ if ($LASTEXITCODE -ne 0) {
   throw 'Ghosium full-source verification failed after branding.'
 }
 
-Write-Host 'Source-level Ghosium branding, complete public-surface audit, product version, Search, Windows identity, first-party links, locales, product icons and ghost:// internal UI routing applied and verified successfully.'
+Write-Host 'Source-level Ghosium branding, privacy search, Windows identity, integrated Tor route, first-party links, locales, product icons and ghost:// internal UI routing applied and verified successfully.'

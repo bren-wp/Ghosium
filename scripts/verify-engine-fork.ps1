@@ -23,6 +23,11 @@ $productVersionRewritePath = Join-Path $repoRoot 'scripts/rewrite-engine-product
 $internalSchemeRewritePath = Join-Path $repoRoot 'scripts/rewrite-engine-internal-scheme.ps1'
 $publicSurfacesRewritePath = Join-Path $repoRoot 'scripts/rewrite-engine-public-surfaces.ps1'
 $performanceDefaultsRewritePath = Join-Path $repoRoot 'scripts/rewrite-engine-performance-defaults.ps1'
+$googleServicesRewritePath = Join-Path $repoRoot 'scripts/rewrite-engine-disable-google-services.ps1'
+$torRouteRewritePath = Join-Path $repoRoot 'scripts/rewrite-engine-tor-route.ps1'
+$onionGuardRewritePath = Join-Path $repoRoot 'scripts/rewrite-engine-onion-guard.ps1'
+$torMenuRewritePath = Join-Path $repoRoot 'scripts/rewrite-engine-tor-menu.ps1'
+$torContractPath = Join-Path $repoRoot 'engine/tor/windows-x64.json'
 
 foreach ($required in @(
   $configPath,
@@ -40,7 +45,12 @@ foreach ($required in @(
   $productVersionRewritePath,
   $internalSchemeRewritePath,
   $publicSurfacesRewritePath,
-  $performanceDefaultsRewritePath
+  $performanceDefaultsRewritePath,
+  $googleServicesRewritePath,
+  $torRouteRewritePath,
+  $onionGuardRewritePath,
+  $torMenuRewritePath,
+  $torContractPath
 )) {
   if (!(Test-Path $required -PathType Leaf)) {
     throw "Required Ghosium fork file is missing: $required"
@@ -207,6 +217,9 @@ if ($SourceRoot) {
 
   $requiredEngineFiles = @(
     'chrome/app/chromium_strings.grd',
+    'chrome/app/chrome_command_ids.h',
+    'chrome/browser/ui/toolbar/app_menu_model.cc',
+    'chrome/browser/chrome_content_browser_client_navigation_throttles.cc',
     'chrome/app/settings_chromium_strings.grdp',
     'chrome/common/url_constants.h',
     'chrome/common/webui_url_constants.h',
@@ -228,6 +241,15 @@ if ($SourceRoot) {
     'chrome/browser/resources/signin/managed_user_profile_notice/managed_user_profile_notice_value_prop.html.ts',
     'ui/webui/resources/images/chrome_logo_dark.svg',
     'components/search_engines/template_url_prepopulate_data.cc',
+    'components/gcm_driver/gcm_driver_desktop.cc',
+    'chrome/browser/domain_reliability/service_factory.cc',
+    'components/network_time/network_time_tracker.cc',
+    'components/variations/service/variations_service.cc',
+    'components/variations/net/variations_http_headers.cc',
+    'components/crash/core/app/crash_reporter_client.cc',
+    'chrome/browser/media/webrtc/webrtc_log_uploader.cc',
+    'chrome/browser/ui/browser_ui_prefs.cc',
+    'components/autofill/core/browser/crowdsourcing/autofill_crowdsourcing_manager.cc',
     'components/vector_icons/chromium/product.icon',
     'components/vector_icons/chromium/product_refresh.icon',
     'extensions/strings/extensions_chromium_strings.grdp'
@@ -360,14 +382,106 @@ if ($SourceRoot) {
     }
   }
 
-  $searchSource = Get-Content (Join-Path $resolvedSourceRoot 'components/search_engines/template_url_prepopulate_data.cc') -Raw
-  foreach ($requiredGoogleFallback in @(
-    'return FindPrepopulatedEngineInternal(prefs, regional_prepopulated_engines,',
-    'google.id,',
-    '/*use_first_as_fallback=*/true'
+  $googleServiceAssertions = @(
+    @('components/gcm_driver/gcm_driver_desktop.cc', 'Ghosium privacy: Google Cloud Messaging is not a browser dependency.'),
+    @('chrome/browser/domain_reliability/service_factory.cc', 'Ghosium privacy: never create the background Domain Reliability uploader.'),
+    @('components/network_time/network_time_tracker.cc', 'Ghosium privacy: never query a browser-owned remote network-time service.'),
+    @('components/variations/service/variations_service.cc', 'Ghosium privacy: no remote variations/field-trial seed fetching.'),
+    @('components/variations/net/variations_http_headers.cc', 'Ghosium privacy: never attach experiment identifiers to web requests.'),
+    @('components/crash/core/app/crash_reporter_client.cc', 'Ghosium privacy: crash data is never uploaded to an upstream endpoint.'),
+    @('chrome/browser/media/webrtc/webrtc_log_uploader.cc', 'Ghosium privacy: WebRTC diagnostic data stays off upstream upload paths.'),
+    @('chrome/browser/ui/browser_ui_prefs.cc', 'kWebRtcTextLogCollectionAllowed, false'),
+    @('components/autofill/core/browser/crowdsourcing/autofill_crowdsourcing_manager.cc', 'Ghosium privacy: do not query or upload form structure to Google Autofill.')
+  )
+  foreach ($assertion in $googleServiceAssertions) {
+    $googleServiceText = Get-Content (Join-Path $resolvedSourceRoot ([string]$assertion[0])) -Raw
+    if (!$googleServiceText.Contains([string]$assertion[1])) {
+      throw "Ghosium background Google-service hardening is missing: $($assertion[0]) / $($assertion[1])"
+    }
+  }
+
+  $onionGuardSource = Get-Content (Join-Path $resolvedSourceRoot 'chrome/browser/chrome_content_browser_client_navigation_throttles.cc') -Raw
+  foreach ($requiredOnionGuardToken in @(
+    'Ghosium Direct-mode onion navigation guard',
+    'GhosiumOnionNavigationThrottle',
+    'HasSwitch("ghosium-tor")',
+    'url.DomainIs("onion")',
+    'net::ERR_BLOCKED_BY_CLIENT',
+    'std::make_unique<GhosiumOnionNavigationThrottle>(registry)'
   )) {
-    if (!$searchSource.Contains($requiredGoogleFallback)) {
-      throw "Google Search fallback integration is missing: $requiredGoogleFallback"
+    if (!$onionGuardSource.Contains($requiredOnionGuardToken)) {
+      throw "Ghosium Direct-mode onion guard is missing: $requiredOnionGuardToken"
+    }
+  }
+
+  $torCommandIds = Get-Content (Join-Path $resolvedSourceRoot 'chrome/app/chrome_command_ids.h') -Raw
+  $torAppMenu = Get-Content (Join-Path $resolvedSourceRoot 'chrome/browser/ui/toolbar/app_menu_model.cc') -Raw
+  $torStrings = Get-Content (Join-Path $resolvedSourceRoot 'chrome/app/chromium_strings.grd') -Raw
+  if (!$torStrings.Contains('IDS_NEW_GHOSIUM_TOR_WINDOW') -or
+      !$torStrings.Contains('New Tor window')) {
+    throw 'Ghosium Tor menu branded string resource is missing.'
+  }
+  if (!$torCommandIds.Contains('IDC_NEW_GHOSIUM_TOR_WINDOW       34064')) {
+    throw 'Ghosium native Tor window command id is missing.'
+  }
+  foreach ($requiredTorMenuToken in @(
+    'Ghosium native Tor menu entry',
+    'IDC_NEW_GHOSIUM_TOR_WINDOW',
+    'IDS_NEW_GHOSIUM_TOR_WINDOW',
+    'tor_command.AppendSwitch("ghosium-tor")',
+    'base::LaunchProcess(tor_command, base::LaunchOptions())'
+  )) {
+    if (!$torAppMenu.Contains($requiredTorMenuToken)) {
+      throw "Ghosium native Tor menu integration is missing: $requiredTorMenuToken"
+    }
+  }
+
+  $torStartup = Get-Content (Join-Path $resolvedSourceRoot 'chrome/app/chrome_main_delegate.cc') -Raw
+  foreach ($requiredTorToken in @(
+    'Ghosium integrated Tor route',
+    'kGhosiumTorSwitch[] = "ghosium-tor"',
+    'socks5://127.0.0.1:17650',
+    'Tor User Data',
+    'Tor Runtime Data',
+    'tor_geoip',
+    'tor_geoip6',
+    '--GeoIPFile',
+    '--GeoIPv6File',
+    'host-resolver-rules',
+    'direct_resolver_rules',
+    'caller_rules',
+    'rejects external proxy/DNS overrides',
+    'MAP *.onion ~NOTFOUND',
+    'disable-quic',
+    'disable-background-networking',
+    'disable_non_proxied_udp',
+    '__OwningControllerProcess',
+    'FILE_PATH_LITERAL("Tor")',
+    'FILE_PATH_LITERAL("tor.exe")'
+  )) {
+    if (!$torStartup.Contains($requiredTorToken)) {
+      throw "Ghosium integrated Tor route is missing source contract token: $requiredTorToken"
+    }
+  }
+  if ($torStartup.Contains('socks5://127.0.0.1:9150')) {
+    throw 'Ghosium Tor route regressed to the common Tor Browser SOCKS port.'
+  }
+
+  $searchSource = Get-Content (Join-Path $resolvedSourceRoot 'components/search_engines/template_url_prepopulate_data.cc') -Raw
+  if (!$searchSource.Contains('return PrepopulatedEngineToTemplateURLData(&duckduckgo);')) {
+    throw 'DuckDuckGo fallback integration is missing from the transformed engine.'
+  }
+  $fallbackMatch = [regex]::Match(
+    $searchSource,
+    '(?ms)std::unique_ptr<TemplateURLData>\s+GetPrepopulatedFallbackSearch\s*\(.*?\)\s*\{(?<body>.*?)\n\}'
+  )
+  if (!$fallbackMatch.Success) {
+    throw 'Unable to isolate transformed fallback-search function.'
+  }
+  $fallbackBody = $fallbackMatch.Groups['body'].Value
+  foreach ($forbiddenGoogleFallback in @('google.id', 'use_first_as_fallback')) {
+    if ($fallbackBody.Contains($forbiddenGoogleFallback)) {
+      throw "Google-owned fallback behavior returned to Ghosium: $forbiddenGoogleFallback"
     }
   }
   foreach ($forbiddenSearchIdentity in @(

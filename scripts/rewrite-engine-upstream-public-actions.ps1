@@ -88,14 +88,9 @@ function Force-AiOverlayHidden {
   Write-Host 'Suppressed public upstream action: Google AI overlay toolbar action'
 }
 
-# Keep action IDs registered for Chromium-internal callers, but make these
-# upstream product/service entry points permanently invisible in Ghosium.
-Force-BuilderActionHidden `
-  -Path $browserActions `
-  -ActionPattern 'SidePanelAction\(\s*SidePanelEntryId::kCustomizeChrome,.*?kActionSidePanelShowCustomizeChrome,\s*bwi,\s*false\)' `
-  -LegacyVisibilityPattern '\.Build\(\)' `
-  -Description 'Customize Chromium side panel'
-
+# Keep action IDs registered for Chromium-internal callers, but make Google-owned
+# AI/service entry points permanently invisible in Ghosium. Customize remains
+# available because it is rebranded and used by Ghosium.
 Force-BuilderActionHidden `
   -Path $browserActions `
   -ActionPattern 'SidePanelAction\(\s*SidePanelEntryId::kGeic,.*?kActionSidePanelShowGeic,\s*bwi,\s*false\)' `
@@ -118,4 +113,4 @@ if ($thirdPartyChanges) {
   throw 'Upstream public-action suppression modified third_party source.'
 }
 
-Write-Host 'Ghosium upstream browser actions suppressed: Customize Chromium, GEIC, Glic/Gemini and AI overlay are not public.'
+Write-Host 'Ghosium upstream Google AI browser actions suppressed: GEIC, Glic/Gemini and AI overlay are not public; Ghosium Customize remains available.'
