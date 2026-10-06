@@ -84,6 +84,17 @@ try {
   }
 
   $torSourceDir = $torExecutables[0].Directory.FullName
+  $bundleRoot = Split-Path -Parent $torSourceDir
+  $bundleData = Join-Path $bundleRoot 'data'
+  $geoipSource = Join-Path $bundleData 'geoip'
+  $geoip6Source = Join-Path $bundleData 'geoip6'
+  foreach ($requiredBundleData in @($geoipSource, $geoip6Source)) {
+    if (!(Test-Path $requiredBundleData -PathType Leaf) -or
+        (Get-Item $requiredBundleData).Length -le 0) {
+      throw "Tor Expert Bundle is missing required data file: $requiredBundleData"
+    }
+  }
+
   if (Test-Path $runtimePath) {
     Remove-Item $runtimePath -Recurse -Force
   }
@@ -91,6 +102,11 @@ try {
   Get-ChildItem $torSourceDir -Force | ForEach-Object {
     Copy-Item $_.FullName -Destination $runtimePath -Recurse -Force
   }
+
+  $runtimeData = Join-Path $runtimePath 'data'
+  New-Item -ItemType Directory -Force -Path $runtimeData | Out-Null
+  Copy-Item $geoipSource (Join-Path $runtimeData 'geoip') -Force
+  Copy-Item $geoip6Source (Join-Path $runtimeData 'geoip6') -Force
 
   $stagedTor = Join-Path $runtimePath 'tor.exe'
   if (!(Test-Path $stagedTor -PathType Leaf) -or (Get-Item $stagedTor).Length -le 0) {
@@ -117,6 +133,8 @@ try {
     normalizedExecutable = 'Tor/tor.exe'
     torExecutableSha256 = (Get-FileHash $stagedTor -Algorithm SHA256).Hash.ToLowerInvariant()
     pluggableTransportIncluded = [bool]$lyrebird
+    geoipDataIncluded = (Test-Path (Join-Path $runtimePath 'data/geoip') -PathType Leaf) -and
+      (Test-Path (Join-Path $runtimePath 'data/geoip6') -PathType Leaf)
     fileCount = $files.Count
     totalBytes = [int64](($files | Measure-Object Length -Sum).Sum)
   }
