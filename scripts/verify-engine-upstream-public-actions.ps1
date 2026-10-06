@@ -23,10 +23,6 @@ $text = [IO.File]::ReadAllText($browserActions)
 
 $requiredHiddenBlocks = @(
   [pscustomobject]@{
-    Name = 'Customize Chromium side panel'
-    Pattern = '(?s)SidePanelAction\(\s*SidePanelEntryId::kCustomizeChrome,.*?kActionSidePanelShowCustomizeChrome,\s*bwi,\s*false\)\s*\.SetVisible\(false\)\s*\.Build\(\)'
-  },
-  [pscustomobject]@{
     Name = 'Google GEIC/Gemini side panel'
     Pattern = '(?s)SidePanelAction\(\s*SidePanelEntryId::kGeic,.*?kActionSidePanelShowGeic,\s*bwi,\s*false\)\s*\.SetVisible\(false\)\s*\.Build\(\)'
   },
@@ -40,6 +36,14 @@ $requiredHiddenBlocks = @(
   }
 )
 
+$customizeMatch = [regex]::Match(
+  $text,
+  '(?s)SidePanelAction\(\s*SidePanelEntryId::kCustomizeChrome,.*?kActionSidePanelShowCustomizeChrome,\s*bwi,\s*false\)(?<tail>.*?)\.Build\(\)'
+)
+if (!$customizeMatch.Success -or $customizeMatch.Groups['tail'].Value.Contains('.SetVisible(false)')) {
+  throw 'Ghosium Customize action was removed while suppressing Google AI surfaces.'
+}
+
 foreach ($contract in $requiredHiddenBlocks) {
   if ($text -notmatch $contract.Pattern) {
     throw "Ghosium public-action contract failed: $($contract.Name) is not permanently hidden."
@@ -48,8 +52,7 @@ foreach ($contract in $requiredHiddenBlocks) {
 
 $forbiddenVisibility = @(
   '(?s)SidePanelEntryId::kGeic,.*?kActionSidePanelShowGeic,\s*bwi,\s*false\)\s*\.SetVisible\(true\)',
-  '(?s)SidePanelEntryId::kGlic,.*?kActionSidePanelShowGlic,\s*bwi,\s*false\)\s*\.SetVisible\(glic::GlicEnabling::ShouldShowGlicButton\(profile\)\)',
-  '(?s)SidePanelEntryId::kCustomizeChrome,.*?kActionSidePanelShowCustomizeChrome,\s*bwi,\s*false\)\s*\.Build\(\)'
+  '(?s)SidePanelEntryId::kGlic,.*?kActionSidePanelShowGlic,\s*bwi,\s*false\)\s*\.SetVisible\(glic::GlicEnabling::ShouldShowGlicButton\(profile\)\)'
 )
 foreach ($pattern in $forbiddenVisibility) {
   if ($text -match $pattern) {
@@ -65,4 +68,4 @@ if ($thirdPartyChanges) {
   throw 'Upstream public-action audit detected third_party modifications.'
 }
 
-Write-Host 'Ghosium upstream public-action audit: Customize Chromium, GEIC, Glic/Gemini and AI overlay are registered only as hidden internal actions.'
+Write-Host 'Ghosium upstream public-action audit: Customize remains available; GEIC, Glic/Gemini and AI overlay are hidden.'
