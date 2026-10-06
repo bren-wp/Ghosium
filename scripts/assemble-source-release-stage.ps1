@@ -223,6 +223,7 @@ $report = [ordered]@{
     torExecutable = 'Tor/tor.exe'
     torExecutableSha256 = [string]$torRuntimeReport.torExecutableSha256
     pluggableTransportIncluded = [bool]$torRuntimeReport.pluggableTransportIncluded
+    geoipDataIncluded = [bool]$torRuntimeReport.geoipDataIncluded
   }
   fileCount = $files.Count
   totalBytes = $totalBytes
