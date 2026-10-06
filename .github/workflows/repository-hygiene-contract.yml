@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   repository-hygiene:
-    name: Verify active fail-closed repository state
+    name: Verify active fail-closed Windows-only repository state
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -21,26 +21,23 @@ jobs:
           persist-credentials: false
           fetch-depth: 0
 
-      - name: Verify Ghosium New Tab and retired Search removal
+      - name: Verify Windows-only product boundary
         shell: python
         run: |
           from pathlib import Path
-          for path in (
-              Path('search-provider'), Path('search-web'),
-              Path('.github/workflows/search-web-contract.yml'),
-              Path('.github/workflows/windows-build.yml'),
-              Path('.github/workflows/production-release-dispatch.yml'),
-              Path('.github/workflows/ghosium-0.0.2-release-trigger.yml'),
-          ):
-              if path.exists():
-                  raise SystemExit(f'Retired path returned: {path}')
-          newtab = Path('extension/newtab.html').read_text(encoding='utf-8')
-          for required in ('action="https://www.google.com/search"', 'name="q"', 'GHOSIUM BROWSER', 'placeholder="Search the web"'):
-              if required not in newtab:
-                  raise SystemExit(f'Ghosium New Tab contract missing: {required}')
-          for forbidden in ('search.ghosium.com', 'Ghosium Search', 'search-provider', 'search-web'):
-              if forbidden in newtab:
-                  raise SystemExit(f'Retired Search surface returned: {forbidden}')
+          retired = (
+              Path('android'),
+              Path('search-provider'),
+              Path('search-web'),
+              Path('.github/workflows/full-source-windows-build.yml'),
+              Path('.github/workflows/source-builder-contract.yml'),
+              Path('.github/workflows/canonical-release-contract.yml'),
+              Path('.github/workflows/native-privacy-contract.yml'),
+              Path('.github/workflows/source-patch-contract.yml'),
+          )
+          found = [str(path) for path in retired if path.exists()]
+          if found:
+              raise SystemExit('Retired product/build paths returned:\n' + '\n'.join(found))
 
       - name: Verify fail-closed checked-in update baseline
         shell: python
@@ -61,16 +58,13 @@ jobs:
           if manifest != expected:
               raise SystemExit(f'Checked-in update baseline is not exact/fail-closed: {manifest}')
 
-      - name: Verify documentation contains only the active version
+      - name: Verify active-version documentation
         shell: python
         run: |
           import re
           from pathlib import Path
           version = Path('VERSION').read_text(encoding='utf-8').strip()
-          docs = (
-              Path('README.md'), Path('BUILDING.md'), Path('CHANGELOG.md'),
-              Path('docs/RELEASE.md'), Path('engine/README.md'),
-          )
+          docs = (Path('README.md'), Path('BUILDING.md'), Path('CHANGELOG.md'), Path('docs/RELEASE.md'), Path('engine/README.md'))
           version_re = re.compile(r'\b0\.\d+\.\d+\b')
           for path in docs:
               text = path.read_text(encoding='utf-8')
@@ -80,27 +74,29 @@ jobs:
               if version not in text:
                   raise SystemExit(f'Active VERSION missing from {path}: {version}')
           if not Path('CHANGELOG.md').read_text(encoding='utf-8').startswith(f'# Changelog\n\n## {version} '):
-              raise SystemExit('CHANGELOG must contain only the current baseline entry first.')
+              raise SystemExit('CHANGELOG must contain the active baseline entry first.')
 
-      - name: Verify release workflow hygiene
+      - name: Verify Tor Browser Windows release workflow hygiene
         shell: python
         run: |
           from pathlib import Path
           dispatcher = Path('.github/workflows/release-request-dispatch.yml').read_text(encoding='utf-8')
-          full_source = Path('.github/workflows/full-source-windows-build.yml').read_text(encoding='utf-8')
-          for required in ("'ghosium/release/**'", "'.release/*.request'", 'expected_ref="refs/heads/ghosium/release/${version}"', 'Exactly one active Ghosium release request marker is required'):
+          builder = Path('.github/workflows/tor-browser-windows-build.yml').read_text(encoding='utf-8')
+          production = Path('.github/workflows/ghosium-0.0.9-production-release.yml').read_text(encoding='utf-8')
+          supervisor = Path('.github/workflows/release-safety-supervisor.yml').read_text(encoding='utf-8')
+          for required in ("'ghosium/release/**'", "'.release/*.request'", 'tor-browser-windows-build.yml'):
               if required not in dispatcher:
                   raise SystemExit(f'Candidate dispatcher invariant missing: {required}')
-          for required in ('ghosium-source-builder', '$params.RequireSigning = $true', "if: github.ref == 'refs/heads/main'", 'GHOSIUM-PUBLIC-SETUP.json', 'GHOSIUM-UPDATE-MANIFEST.json', 'SHA256SUMS.txt', 'Production main requires exactly one active release marker'):
-              if required not in full_source:
-                  raise SystemExit(f'Canonical full-source invariant missing: {required}')
-          supervisor = Path('.github/workflows/release-safety-supervisor.yml').read_text(encoding='utf-8')
-          for required in ('actions: write', 'full-source-windows-build.yml', '/cancel', 'ghosium-v'):
+          for required in ('./scripts/bootstrap-tor-browser-source.ps1','./mach build','./mach package','firefox.exe','Ghosium-Browser-Setup.exe','Ghosium-Browser-Portable.exe','GHOSIUM-TOR-BROWSER-WINDOWS.json','chromiumFallbackAllowed = $false'):
+              if required not in builder:
+                  raise SystemExit(f'Tor Browser builder invariant missing: {required}')
+          for required in ('GHOSIUM_SIGN_CERT_THUMBPRINT','GHOSIUM_TIMESTAMP_URL','signtool.exe','gh release create','Ghosium-Browser-Setup.exe','Ghosium-Browser-Portable.exe'):
+              if required not in production:
+                  raise SystemExit(f'Production release invariant missing: {required}')
+          for required in ('actions: write','tor-browser-windows-build.yml','/cancel','ghosium-v'):
               if required not in supervisor:
                   raise SystemExit(f'Release-safety supervisor invariant missing: {required}')
 
       - name: Verify repository formatting
         shell: bash
-        run: |
-          set -euo pipefail
-          git diff --check
+        run: git diff --check
