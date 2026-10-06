@@ -71,6 +71,11 @@ jobs:
                           failures.append(f'{path}:{number}: {line.strip()}')
 
           readme = Path('README.md').read_text(encoding='utf-8')
+          readme_legacy = re.compile(
+              r'google\s+chrome|\bchrome\b|chrome://|chrome-untrusted://|'
+              r'support\.google|chrome\.google|google\.com/chrome',
+              re.I,
+          )
           legal_heading = '## License and third-party rights'
           if legal_heading not in readme:
               failures.append('README.md: missing explicit legal-attribution section')
