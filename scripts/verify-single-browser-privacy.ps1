@@ -89,6 +89,10 @@ foreach ($requiredToken in @(
   'disable_non_proxied_udp',
   'Tor User Data',
   'Tor Runtime Data',
+  'tor_geoip',
+  'tor_geoip6',
+  '--GeoIPFile',
+  '--GeoIPv6File',
   '__OwningControllerProcess'
 )) {
   if (!$torRewrite.Contains($requiredToken)) {
@@ -137,6 +141,9 @@ foreach ($requiredToken in @(
   'Get-FileHash $Path -Algorithm SHA256',
   'Downloaded Tor Expert Bundle failed the pinned SHA-256 contract.',
   'Get-ChildItem $extractRoot -File -Recurse -Filter ''tor.exe''',
+  'geoipSource',
+  'geoip6Source',
+  'geoipDataIncluded',
   'GHOSIUM-TOR-RUNTIME.json'
 )) {
   if (!$stageTor.Contains($requiredToken)) {
