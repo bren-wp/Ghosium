@@ -7,7 +7,7 @@
 <p align="center"><strong>Browse freely. Stay private.</strong></p>
 
 <p align="center">
-  <img alt="Release 0.0.4" src="https://img.shields.io/badge/release-0.0.4-111016">
+  <img alt="Release 0.0.3" src="https://img.shields.io/badge/release-0.0.3-111016">
   <img alt="Windows x64" src="https://img.shields.io/badge/platform-Windows%20x64-111016">
   <img alt="Tor Browser 15.0.24" src="https://img.shields.io/badge/Tor%20Browser-15.0.24-111016">
   <img alt="Firefox ESR 140.17.0" src="https://img.shields.io/badge/Firefox%20ESR-140.17.0-111016">
@@ -15,7 +15,7 @@
 
 **Ghosium Browser by Brendigo** is a Windows x64 privacy browser built around a pinned Tor Browser / Firefox ESR source baseline and the Ghosium visual identity.
 
-Version **0.0.4** continues the published Ghosium line after 0.0.1 and 0.0.2.
+Version **0.0.3** continues the published Ghosium line after 0.0.1 and 0.0.2.
 
 ## Why Ghosium
 
@@ -48,7 +48,7 @@ The canonical UI assets remain under `extension/`; the build applies them to the
 
 ## Windows downloads
 
-Ghosium 0.0.4 publishes two user-facing Windows packages:
+Ghosium 0.0.3 publishes two user-facing Windows packages:
 
 | Package | Purpose |
 | --- | --- |
@@ -65,7 +65,7 @@ Release assets also include SHA-256 and provenance evidence so the exact publish
 | Firefox ESR | 140.17.0esr |
 | Tor | 0.4.9.13 |
 | Target | Windows x86_64 |
-| Public version | 0.0.4 |
+| Public version | 0.0.3 |
 
 The source contract is defined in `engine/tor-browser/windows-x64.json`; the Tor runtime contract is defined in `engine/tor/windows-x64.json`.
 
@@ -108,7 +108,7 @@ A production release is blocked if the source identity, Tor runtime, browser run
 
 - **0.0.1** — first published Ghosium preview line
 - **0.0.2** — second published Ghosium preview line
-- **0.0.4** — Tor Browser / Firefox ESR Windows engine migration, Tor-first runtime, preserved Ghosium UI, hardened Setup/Portable release path
+- **0.0.3** — Tor Browser / Firefox ESR Windows engine migration, Tor-first runtime, preserved Ghosium UI, hardened Setup/Portable release path
 
 ## Security
 
