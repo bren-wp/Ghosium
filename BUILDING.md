@@ -1,6 +1,6 @@
-# Building Ghosium Browser 0.0.3
+# Building Ghosium Browser 0.0.4
 
-The active product version is `0.0.3`. Ghosium is Windows x64-only.
+The active product version is `0.0.4`. Ghosium is Windows x64-only.
 
 ## Upstream source
 
@@ -20,7 +20,7 @@ The bootstrap accepts only the official Tor Project archive pinned in `engine/to
 
 ## Windows build direction
 
-The canonical 0.0.3 build path is `.github/workflows/tor-browser-windows-build.yml`.
+The canonical 0.0.4 build path is `.github/workflows/tor-browser-windows-build.yml`.
 
 The build must produce a Windows x64 Tor Browser/Firefox-derived runtime, apply Ghosium source branding/product changes, stage the runtime under `runtime/`, compile the public `Ghosium-Browser.exe` launcher and generate Setup and Portable packages.
 
@@ -40,7 +40,7 @@ It does not use Chromium's `--user-data-dir` contract.
 
 Production publication requires:
 
-1. exact 0.0.3 source/version synchronization;
+1. exact 0.0.4 source/version synchronization;
 2. successful Tor Browser upstream contract verification;
 3. Windows x64 source build;
 4. runtime smoke validation;
