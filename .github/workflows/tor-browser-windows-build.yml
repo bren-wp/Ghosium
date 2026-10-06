@@ -107,7 +107,6 @@ jobs:
           ac_add_options --target=x86_64-pc-windows-msvc
           ac_add_options --enable-bootstrap
           ac_add_options --with-base-browser-version=15.0.24
-          ac_add_options --with-tor-browser-version=15.0.24
           ac_add_options --disable-tor-browser-update
           ac_add_options --disable-update-agent
           ac_add_options --disable-maintenance-service
