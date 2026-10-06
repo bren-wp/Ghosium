@@ -1,6 +1,7 @@
 name: Ghosium 0.0.3 Windows Production Release
 
 on:
+  workflow_dispatch:
   push:
     branches: [main]
     paths:
