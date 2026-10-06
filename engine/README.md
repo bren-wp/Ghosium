@@ -1,6 +1,6 @@
 # Ghosium Windows engine integration
 
-The active product baseline is **0.0.9**.
+The active product baseline is **0.0.10**.
 
 ## Engine direction
 
@@ -31,4 +31,4 @@ The migration must preserve browser sandboxing, process isolation, TLS/certifica
 
 ## Publication rule
 
-The previous Chromium source pipeline must not publish Ghosium 0.0.9. Canonical publication is blocked until the Windows builder is switched to the pinned Tor Browser / Firefox ESR source baseline and passes complete runtime, Setup/Portable, signing and provenance verification.
+The previous Chromium source pipeline must not publish Ghosium 0.0.10. Canonical publication is blocked until the Windows builder is switched to the pinned Tor Browser / Firefox ESR source baseline and passes complete runtime, Setup/Portable, signing and provenance verification.
