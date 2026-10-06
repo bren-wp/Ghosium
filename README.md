@@ -49,4 +49,4 @@ Brendigo-authored Ghosium material is governed by the **Brendigo Proprietary Com
 
 Public repository visibility does not by itself grant an open-source license to Brendigo-authored material.
 
-Tor Browser, Firefox, Tor and every other third-party or open-source component remain governed by their own licenses. Required notices are preserved in `THIRD_PARTY_NOTICES.md`.
+Tor Browser, Firefox ESR, Tor and every other third-party or open-source component remain governed by their own licenses and trademark terms. Required notices are preserved in `THIRD_PARTY_NOTICES.md`.
