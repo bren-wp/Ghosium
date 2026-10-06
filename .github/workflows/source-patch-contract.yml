@@ -1,4 +1,4 @@
-name: Ghosium Source Patch Contract
+name: Ghosium Legacy Chromium Source Patch Contract
 
 on:
   pull_request:
@@ -6,8 +6,6 @@ on:
       - main
     paths:
       - 'ENGINE_SOURCE_REVISION'
-      - 'VERSION'
-      - 'engine/branding/**'
       - 'engine/build/windows-x64.args.gn'
       - 'scripts/apply-engine-branding.ps1'
       - 'scripts/rewrite-engine-product-links.ps1'
@@ -32,8 +30,6 @@ on:
       - main
     paths:
       - 'ENGINE_SOURCE_REVISION'
-      - 'VERSION'
-      - 'engine/branding/**'
       - 'engine/build/windows-x64.args.gn'
       - 'scripts/apply-engine-branding.ps1'
       - 'scripts/rewrite-engine-product-links.ps1'
@@ -60,7 +56,7 @@ permissions:
 
 jobs:
   source-patch-contract:
-    name: Verify pinned engine patch compatibility
+    name: Verify legacy Chromium patch compatibility
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
