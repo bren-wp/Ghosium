@@ -2,87 +2,54 @@
   <img src="engine/branding/ghosium-mark.svg" width="112" alt="Ghosium Browser icon">
 </p>
 
-# Ghosium Browser 0.0.8
+# Ghosium Browser 0.0.9
 
-**Ghosium Browser by Brendigo** is a privacy-focused browser product for **Windows x64** and **Android 10+**. The active product version is **0.0.8**.
+**Ghosium Browser by Brendigo** is a privacy-focused **Windows x64** browser. The active product version is **0.0.9**.
 
-Version 0.0.8 combines the pinned full-source Windows engine build with a native Android browser shell and introduces the single-browser privacy/Tor foundation. Publication is fail-closed: the exact release commit must pass repository contracts, Windows source-build/runtime/package/signing gates and Android unit/lint/minified-release/signing verification before the release is considered complete. Production full-source Windows work on `main` additionally requires the exact promoted `.release/ghosium-v0.0.8.request` marker; unpromoted main runs are cancelled by the release-safety supervisor.
+The active development direction is a Windows-only migration from the previous Chromium engine path to a pinned **Tor Browser / Firefox ESR** source baseline. Publication is fail-closed: Ghosium 0.0.9 must not be released until the Tor Browser-based Windows builder, runtime verification, Setup/Portable packaging, Authenticode signing and provenance gates are complete.
 
 ## Product identity
 
 - Product: **Ghosium Browser**
 - Publisher: **Brendigo**
-- Windows: x64 Setup and registry-free Portable packages
-- Android package: `com.brendigo.ghosium`
-- Android support baseline: API 29 / Android 10+
+- Platform: **Windows x64**
+- Public browser: `Ghosium-Browser.exe`
+- Distribution: `Ghosium-Browser-Setup.exe` and `Ghosium-Browser-Portable.exe`
 - Home: `https://ghosium.com/`
 - Store: `https://store.ghosium.com/`
 - Updates: `https://updates.ghosium.com/`
-- Support: `https://ghosium.com/support`
-- Security: `https://ghosium.com/security`
 - Privacy: `https://ghosium.com/legal/privacy-policy`
-- Default external web search provider: DuckDuckGo
+- Default external search provider: DuckDuckGo
 
-## Windows 0.0.8
+## Tor Browser / Firefox ESR engine direction
 
-The Windows product is compiled from the exact pinned upstream engine revision in `ENGINE_SOURCE_REVISION`. Ghosium source transforms apply product identity, `ghost://` internal routes, New Tab behavior, privacy defaults, update integration and native performance defaults while preserving sandboxing, site/process isolation and TLS/certificate validation. Ghosium's privacy direction explicitly forbids background Google-owned product services; user-initiated navigation to ordinary websites remains normal.
+`engine/tor-browser/windows-x64.json` pins the reviewed upstream source baseline. The bootstrap path verifies the official source archive SHA-256 before extraction and explicitly forbids a Chromium fallback.
 
-The documented Ghosium internal route contract is:
+Ghosium remains one browser product and preserves its own Brendigo/Ghosium identity. Upstream third-party source, licenses and required notices remain attributed to their original owners.
 
-- `ghost://newtab/`
-- `ghost://history/`
-- `ghost://bookmarks/`
-- `ghost://downloads/`
-- `ghost://settings/`
-- `ghost://profiles/`
-- `ghost://extensions/`
-- `ghost://passwords/`
+## Windows profile and packaging
 
-0.0.8 also hardens the compatibility/Portable and integrated privacy-routing layer:
-
-- installed profile root is `%LOCALAPPDATA%\Brendigo\Ghosium\User Data`;
-- Portable uses a private launcher profile contract and stores data beside the Portable executable;
-- Portable runtime extraction is version-cached rather than repeated on every launch;
-- cache preparation uses staging + ready-marker semantics so interrupted extraction cannot be treated as complete;
-- protected engine arguments cannot override the Ghosium profile, extension, language or security contract;
-- noninteractive QA/headless launch paths fail with exit codes rather than modal dialogs.
-
-## Android 0.0.8
-
-The Android application lives in `android/` and uses the platform WebView inside a Ghosium-owned native shell. It provides URL/search entry, Back/Forward/Home/Reload, local New Tab, download handling, file chooser, fullscreen media, Desktop Site, Find in Page, Share, clear-browsing-data controls, state restoration and renderer recovery.
-
-Privacy/security defaults include blocked third-party cookies, mixed-content blocking, file/content access disabled for WebView, Safe Browsing, fail-closed TLS errors, confirmation before external URI schemes and disabled Android cloud/device-transfer backup for browser data. No analytics/advertising SDK is included.
-
-## Release assets
-
-A complete 0.0.8 production release must contain at least:
+Installed profile root:
 
 ```text
-Ghosium-Browser-Setup.exe
-Ghosium-Browser-Portable.exe
-Ghosium-Browser-Android.apk
+%LOCALAPPDATA%\Brendigo\Ghosium\User Data
 ```
 
-The Windows packages must be produced by the canonical full-source workflow and pass Authenticode/provenance/lifecycle gates. The Android APK must be minified, signed with the stable Brendigo Android release identity, verified with `apksigner`, bound to `com.brendigo.ghosium` version `0.0.8`, and accompanied by Android provenance evidence.
+Portable keeps browser data beside the Portable executable, uses versioned runtime caching and does not create shortcuts or registry-backed profile state.
+
+The checked-in stable update manifest remains fail-closed before canonical publication: `enabled:false`, empty SHA-256 and zero size.
 
 ## Development and verification
 
-- Windows full-source build: `.github/workflows/full-source-windows-build.yml`
-- Release-safety supervisor: `.github/workflows/release-safety-supervisor.yml`
-- Cross-platform 0.0.8 QA: `.github/workflows/ghosium-0.0.8-quality.yml`
-- Android release-candidate QA: `.github/workflows/ghosium-0.0.8-android-release-candidate.yml`
-- Production 0.0.8 orchestration: `.github/workflows/ghosium-0.0.8-production-release.yml`
-- Windows build documentation: `BUILDING.md`
-- Android documentation: `android/README.md`
+- Windows 0.0.9 QA: `.github/workflows/ghosium-0.0.9-quality.yml`
+- Windows production orchestration: `.github/workflows/ghosium-0.0.9-production-release.yml`
+- Tor Browser upstream verifier: `scripts/verify-tor-browser-upstream.ps1`
+- Tor Browser source bootstrap: `scripts/bootstrap-tor-browser-source.ps1`
+- Build documentation: `BUILDING.md`
 - Release procedure: `docs/RELEASE.md`
 - Architecture: `ARCHITECTURE.md`
-- Privacy: `PRIVACY.md`
 - Security: `SECURITY.md`
-
-The checked-in Windows update manifest remains fail-closed until canonical publication (`enabled:false`, empty SHA-256, zero size). Numerical performance claims are made only from exact-build evidence generated by the controlled benchmark workflow.
 
 ## License and third-party rights
 
-Brendigo-authored Ghosium material is governed by the **Brendigo Proprietary Commercial Software License Agreement** in `LICENSE`. Public repository visibility does not by itself grant an open-source license to Brendigo-authored proprietary material.
-
-Chromium and every other third-party or open-source component remain governed by their own licenses. Android WebView, AndroidX, Material Components and other third-party components likewise remain governed by their applicable licenses and notices. Required attribution is preserved in `THIRD_PARTY_NOTICES.md` and applicable bundled material.
+Brendigo-authored Ghosium material is governed by the **Brendigo Proprietary Commercial Software License Agreement** in `LICENSE`. Tor Browser, Firefox ESR, Tor and every other third-party or open-source component remain governed by their own licenses and trademark terms. Required attribution is preserved in `THIRD_PARTY_NOTICES.md` and applicable bundled material.
