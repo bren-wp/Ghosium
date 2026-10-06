@@ -225,7 +225,7 @@ foreach ($required in @(
   'kGhosiumPortableProfileSwitch[] = "ghosium-portable-profile"',
   'portable_profile_active',
   'portable_profile.IsAbsolute()',
-  'socks5://$socksEndpoint',
+  "socks5://$socksEndpoint",
   'Tor User Data',
   'Tor Runtime Data',
   'tor_geoip',
