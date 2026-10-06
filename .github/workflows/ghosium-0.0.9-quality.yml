@@ -59,7 +59,7 @@ jobs:
                       raise SystemExit(f'Windows-only product contract found stale {token!r} in {path}')
 
           launcher = Path('compat-preview/launcher/main.cpp').read_text(encoding='utf-8')
-          for token in ('SHGetFolderPathW', 'kCompanyDirectory[] = L"Brendigo"', 'kProfileDirectory[] = L"Ghosium"', '--ghosium-portable-profile=', '--no-sandbox', '--ignore-certificate-errors'):
+          for token in ('SHGetFolderPathW', 'kCompanyDirectory[] = L"Brendigo"', 'kProfileDirectory[] = L"Ghosium"', '--ghosium-portable-profile=', 'firefox.exe', '-profile'):
               if token not in launcher:
                   raise SystemExit(f'Windows launcher hardening token missing: {token}')
 
@@ -118,7 +118,7 @@ jobs:
           $vsPath = (& $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath | Select-Object -First 1)
           if (!$vsPath) { throw 'Visual Studio C++ toolchain was not found.' }
           $devCmd = Join-Path $vsPath 'Common7\Tools\VsDevCmd.bat'
-          $enginePath = Join-Path (Resolve-Path 'qa-stage/runtime').Path 'Ghosium-Engine.exe'
+          $enginePath = Join-Path (Resolve-Path 'qa-stage/runtime').Path 'firefox.exe'
           $compile = "call `"$devCmd`" -arch=x64 -host_arch=x64 && cl.exe /nologo /std:c++20 /O2 /W4 /EHsc /MT qa-engine.cpp /Fe:`"$enginePath`" /link /SUBSYSTEM:CONSOLE /DYNAMICBASE /NXCOMPAT"
           & cmd.exe /d /s /c $compile
           if ($LASTEXITCODE -ne 0 -or !(Test-Path $enginePath -PathType Leaf)) { throw 'Native deterministic test engine build failed.' }
@@ -170,14 +170,15 @@ jobs:
           $argsFile = Join-Path $runtime 'runtime/engine-args.txt'
           if (!(Test-Path $marker) -or !(Test-Path $argsFile)) { throw 'Portable runtime evidence missing.' }
           $args = @(Get-Content $argsFile)
-          $expectedProfile = '--user-data-dir=' + (Join-Path $runDir 'Ghosium-Portable-Data')
-          if ($args -notcontains $expectedProfile) { throw 'Portable profile isolation failed.' }
+          $expectedProfile = (Join-Path $runDir 'Ghosium-Portable-Data')
+          $profileIndex = [Array]::IndexOf($args, '-profile')
+          if ($profileIndex -lt 0 -or $profileIndex + 1 -ge $args.Count -or $args[$profileIndex + 1] -ne $expectedProfile) { throw 'Portable Firefox profile isolation failed.' }
 
-          $engine = Get-Item (Join-Path $runtime 'runtime/Ghosium-Engine.exe')
+          $engine = Get-Item (Join-Path $runtime 'runtime/firefox.exe')
           $sentinelTime = [DateTime]::SpecifyKind([DateTime]'2001-02-03T04:05:06', [DateTimeKind]::Utc)
           $engine.LastWriteTimeUtc = $sentinelTime
           if ((Invoke-PortableQa $portable) -ne 0) { throw 'Portable cached launch failed.' }
-          if ((Get-Item (Join-Path $runtime 'runtime/Ghosium-Engine.exe')).LastWriteTimeUtc -ne $sentinelTime) {
+          if ((Get-Item (Join-Path $runtime 'runtime/firefox.exe')).LastWriteTimeUtc -ne $sentinelTime) {
             throw 'Portable runtime was unnecessarily re-extracted.'
           }
           Write-Host 'Windows 0.0.9 launcher/profile/cache QA: OK'
