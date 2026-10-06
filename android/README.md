@@ -1,10 +1,10 @@
-# Ghosium Browser for Android 0.0.7
+# Ghosium Browser for Android 0.0.8
 
 ## Baseline
 
 - Package: `com.brendigo.ghosium`
-- Version code: `7`
-- Version name: `0.0.7`
+- Version code: `8`
+- Version name: `0.0.8`
 - Minimum SDK: 29 (Android 10)
 - Compile SDK: 36
 - Target SDK: 36
@@ -31,7 +31,7 @@ English is the base Android resource language and Croatian is provided in `value
 
 ## QA
 
-The 0.0.7 quality workflow installs stable API 36/build-tools 36.0.0, verifies Gradle 8.13 by SHA-256 and runs unit tests + lint with warnings-as-errors + debug/release assembly. Debug APK signing is verified only as QA identity; it is not the production signing identity.
+The 0.0.8 quality workflow installs stable API 36/build-tools 36.0.0, verifies Gradle 8.13 by SHA-256 and runs unit tests + lint with warnings-as-errors + debug/release assembly. Debug APK signing is verified only as QA identity; it is not the production signing identity.
 
 ## Production signing
 
