@@ -121,7 +121,7 @@ jobs:
         run: |
           from pathlib import Path
 
-          production = Path('.github/workflows/ghosium-0.0.10-production-release.yml').read_text(encoding='utf-8')
+          production = Path('.github/workflows/ghosium-0.0.9-production-release.yml').read_text(encoding='utf-8')
           if 'full-source-windows-build.yml' in production:
               raise SystemExit(
                   '0.0.10 production still dispatches the Chromium full-source workflow. '
