@@ -54,7 +54,7 @@ jobs:
         run: |
           set -euo pipefail
           version="$(tr -d '\r\n ' < VERSION)"
-          tag="ghosium-v$version"
+          tag="ghosium-v${version}-preview.1"
           marker=".release/$tag.request"
           test -f "$marker"
           test "$(tr -d '\r\n ' < "$marker")" = "$tag"
