@@ -59,7 +59,7 @@ jobs:
                       raise SystemExit(f'Windows-only product contract found stale {token!r} in {path}')
 
           launcher = Path('compat-preview/launcher/main.cpp').read_text(encoding='utf-8')
-          for token in ('SHGetFolderPathW', 'kCompanyDirectory[] = L"Brendigo"', 'kProfileDirectory[] = L"Ghosium"', '--ghosium-portable-profile=', 'firefox.exe', 'Tor\\tor.exe', '-profile', 'network.proxy.socks_remote_dns', 'Browser startup was blocked to avoid a direct-network fallback'):
+          for token in ('SHGetFolderPathW', 'kCompanyDirectory[] = L"Brendigo"', 'kProfileDirectory[] = L"Ghosium"', '--ghosium-portable-profile=', 'firefox.exe', r'Tor\\tor.exe', '-profile', 'network.proxy.socks_remote_dns', 'Browser startup was blocked to avoid a direct-network fallback'):
               if token not in launcher:
                   raise SystemExit(f'Windows launcher hardening token missing: {token}')
 
