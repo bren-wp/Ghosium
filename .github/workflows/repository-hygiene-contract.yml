@@ -86,7 +86,7 @@ jobs:
           for required in ("'ghosium/release/**'", "'.release/*.request'", 'tor-browser-windows-build.yml'):
               if required not in dispatcher:
                   raise SystemExit(f'Candidate dispatcher invariant missing: {required}')
-          for required in ('./scripts/bootstrap-tor-browser-source.ps1','./mach build','./mach package','firefox.exe','Ghosium-Browser-Setup.exe','Ghosium-Browser-Portable.exe','GHOSIUM-TOR-BROWSER-WINDOWS.json','chromiumFallbackAllowed = $false'):
+          for required in ('./scripts/bootstrap-tor-browser-source.ps1','./scripts/stage-tor-runtime.ps1','./mach build','./mach package','firefox.exe','Ghosium-Browser-Setup.exe','Ghosium-Browser-Portable.exe','GHOSIUM-TOR-BROWSER-WINDOWS.json','chromiumFallbackAllowed = $false'):
               if required not in builder:
                   raise SystemExit(f'Tor Browser builder invariant missing: {required}')
           for required in ('GHOSIUM_SIGN_CERT_THUMBPRINT','GHOSIUM_TIMESTAMP_URL','signtool.exe','gh release create','Ghosium-Browser-Setup.exe','Ghosium-Browser-Portable.exe'):
