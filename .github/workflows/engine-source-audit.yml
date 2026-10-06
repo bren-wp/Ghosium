@@ -74,8 +74,8 @@ jobs:
           from pathlib import Path
 
           version = Path('VERSION').read_text(encoding='utf-8').strip()
-          if version not in {'0.0.3', '0.0.4'}:
-              raise SystemExit(f'Expected active Tor Browser Windows engine baseline, got {version!r}')
+          if version != '0.0.3':
+              raise SystemExit(f'Expected Windows engine baseline 0.0.3, got {version!r}')
 
           contract = json.loads(Path('engine/tor-browser/windows-x64.json').read_text(encoding='utf-8'))
           expected = {
