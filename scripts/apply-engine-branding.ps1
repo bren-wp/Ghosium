@@ -268,6 +268,13 @@ if ($LASTEXITCODE -ne 0) {
   throw 'Ghosium performance-default rewrite failed.'
 }
 
+# Remove browser-owned Google background service traffic while preserving core
+# browser security invariants such as sandboxing, TLS and process isolation.
+& (Join-Path $PSScriptRoot 'rewrite-engine-disable-google-services.ps1') -SourceRoot $sourceRootResolved
+if ($LASTEXITCODE -ne 0) {
+  throw 'Ghosium background Google-service hardening failed.'
+}
+
 # Add the optional Tor-routed session to the same Ghosium Browser executable.
 # The route is fail-closed, uses an isolated profile and never creates a second
 # branded browser application.
