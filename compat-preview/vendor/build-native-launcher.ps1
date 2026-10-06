@@ -17,6 +17,12 @@ $major = $Matches[1]
 $minor = $Matches[2]
 $patch = $Matches[3]
 
+$iconGenerator = 'scripts/ensure-ghosium-icon.ps1'
+if (!(Test-Path $iconGenerator -PathType Leaf)) {
+  throw "Canonical Ghosium icon generator is missing: $iconGenerator"
+}
+& $iconGenerator -OutputPath ([IO.Path]::GetFullPath('ghosium.ico')) | Out-Host
+
 $required = @(
   'launcher/main.cpp',
   'launcher/ghosium.rc',
