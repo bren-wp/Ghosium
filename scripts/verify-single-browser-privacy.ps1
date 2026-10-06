@@ -7,6 +7,7 @@ $repoRoot = Split-Path -Parent $PSScriptRoot
 $productPath = Join-Path $repoRoot 'engine/branding/product.json'
 $torPath = Join-Path $repoRoot 'engine/tor/windows-x64.json'
 $torRewritePath = Join-Path $repoRoot 'scripts/rewrite-engine-tor-route.ps1'
+$onionGuardPath = Join-Path $repoRoot 'scripts/rewrite-engine-onion-guard.ps1'
 $searchRewritePath = Join-Path $repoRoot 'scripts/rewrite-engine-default-search.ps1'
 $stageTorPath = Join-Path $repoRoot 'scripts/stage-tor-runtime.ps1'
 $googleServicesPath = Join-Path $repoRoot 'scripts/rewrite-engine-disable-google-services.ps1'
@@ -16,6 +17,7 @@ foreach ($required in @(
   $productPath,
   $torPath,
   $torRewritePath,
+  $onionGuardPath,
   $searchRewritePath,
   $stageTorPath,
   $googleServicesPath,
@@ -74,6 +76,7 @@ foreach ($requiredToken in @(
   'kGhosiumTorSwitch[] = "ghosium-tor"',
   'socks5://$socksEndpoint',
   'host-resolver-rules',
+  'MAP *.onion ~NOTFOUND',
   'disable-quic',
   'disable-background-networking',
   'disable_non_proxied_udp',
@@ -100,6 +103,19 @@ foreach ($requiredToken in @(
 )) {
   if (!$googleServices.Contains($requiredToken)) {
     throw "Ghosium Google-service hardening lost required source contract: $requiredToken"
+  }
+}
+
+$onionGuard = Get-Content $onionGuardPath -Raw
+foreach ($requiredToken in @(
+  'Ghosium Direct-mode onion navigation guard',
+  'GhosiumOnionNavigationThrottle',
+  'HasSwitch("ghosium-tor")',
+  'url.DomainIs("onion")',
+  'net::ERR_BLOCKED_BY_CLIENT'
+)) {
+  if (!$onionGuard.Contains($requiredToken)) {
+    throw "Ghosium Direct-mode onion guard lost required contract: $requiredToken"
   }
 }
 
