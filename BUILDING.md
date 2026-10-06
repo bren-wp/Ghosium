@@ -1,76 +1,52 @@
-# Building Ghosium Browser 0.0.8
+# Building Ghosium Browser 0.0.9
 
-## Release baseline
+The active product version is `0.0.9`. Ghosium is Windows x64-only.
 
-The active product version is `0.0.8`. Windows and Android artifacts in one production release must come from the exact same Git commit.
+## Upstream source
 
-## Windows canonical build
+Verify the immutable upstream contract:
 
-Windows x64 is built from the exact Chromium source revision in `ENGINE_SOURCE_REVISION` with the exact `DEPOT_TOOLS_REVISION`. Production must not use floating engine branches, precompiled browser snapshots or unreviewed source edits.
-
-`.github/workflows/full-source-windows-build.yml` performs source-builder/toolchain preflight, patch-anchor verification, pinned Chromium bootstrap, Ghosium source transformation, deterministic GN configuration, full browser compilation, runtime/security verification, performance evidence, canonical Setup/Portable packaging, install-update-uninstall smoke testing, production Authenticode signing, update-manifest binding, provenance and SHA-256 generation.
-
-Production `main` builds require the controlled self-hosted Windows source builder and the configured Brendigo code-signing certificate/private key. Signing requirements must not be downgraded to make a release pass.
-
-## Android build
-
-Android source is in `android/`.
-
-Pinned release baseline:
-
-```text
-applicationId  com.brendigo.ghosium
-minSdk         29
-compileSdk     36
-targetSdk      36
-versionCode    7
-versionName    0.0.8
-JDK            17
-Gradle         8.13
+```powershell
+./scripts/verify-tor-browser-upstream.ps1
 ```
 
-GitHub-hosted builds install `platforms;android-36` and `build-tools;36.0.0`. Gradle 8.13 is downloaded over HTTPS and accepted only after SHA-256 `20f1b1176237254a6fc204d8434196fa11a4cfb387567519c61556e8710aed78` matches.
+Bootstrap the pinned source into an empty directory:
 
-Typical local verification with equivalent tools:
-
-```text
-gradle --no-daemon -p android testDebugUnitTest lintDebug lintRelease assembleDebug assembleRelease
+```powershell
+./scripts/bootstrap-tor-browser-source.ps1 -Destination C:\src\ghosium-tor-browser
 ```
 
-The project treats lint warnings as errors except the narrowly documented dependency-version check and `OldTargetApi`. API 37 was not promoted into 0.0.8 because the stable GitHub-hosted SDK channel used by the release pipeline did not expose `platforms;android-37`; the product remains on stable API 36 rather than depending on a preview SDK.
+The bootstrap accepts only the official Tor Project archive pinned in `engine/tor-browser/windows-x64.json` and verifies its SHA-256 before extraction.
 
-## Android production signing
+## Windows build direction
 
-Production uses a stable Android signing identity supplied only through GitHub Actions secrets. Private key material must never be committed.
+The canonical 0.0.9 build path is `.github/workflows/tor-browser-windows-build.yml`.
 
-Required secrets:
+The build must produce a Windows x64 Tor Browser/Firefox-derived runtime, apply Ghosium source branding/product changes, stage the runtime under `runtime/`, compile the public `Ghosium-Browser.exe` launcher and generate Setup and Portable packages.
+
+Firefox's supported Windows build environment and toolchain requirements apply. Cross-build or native Windows build steps must remain reproducible and version-pinned where possible.
+
+## Profiles
+
+The Ghosium launcher uses:
 
 ```text
-GHOSIUM_ANDROID_KEYSTORE_BASE64
-GHOSIUM_ANDROID_KEYSTORE_PASSWORD
-GHOSIUM_ANDROID_KEY_ALIAS
-GHOSIUM_ANDROID_KEY_PASSWORD
+-profile <Ghosium profile path>
 ```
 
-The production workflow decodes the keystore only into the ephemeral runner, verifies the alias, builds the minified release APK, verifies it with Android `apksigner`, confirms package/version with `aapt`, records the signer certificate SHA-256 and deletes the runner with the job.
+It does not use Chromium's `--user-data-dir` contract.
 
-## Production orchestration
+## Production requirements
 
-`.github/workflows/ghosium-0.0.8-production-release.yml` is triggered by the exact main-branch marker `.release/ghosium-v0.0.8.request`.
+Production publication requires:
 
-A production `main` full-source dispatch is rejected before the Windows builder is allocated unless the exact single promoted marker for VERSION exists. The release-safety supervisor also cancels queued or running main full-source requests whose source commit lacks that exact marker.
+1. exact 0.0.9 source/version synchronization;
+2. successful Tor Browser upstream contract verification;
+3. Windows x64 source build;
+4. runtime smoke validation;
+5. canonical Setup and Portable packaging;
+6. valid Authenticode signing;
+7. package provenance and SHA-256 evidence;
+8. immutable GitHub release publication from the exact promoted marker commit.
 
-Release order is intentionally fail-closed:
-
-1. validate version + marker;
-2. build/test/lint/minify/sign/verify Android 0.0.8;
-3. upload Android provenance artifact;
-4. verify that `ghosium-v0.0.8` does not already exist;
-5. dispatch the canonical full-source Windows production workflow on the exact `main` SHA;
-6. require the complete Windows build/signing/publish workflow to succeed;
-7. attach the previously verified Android APK to that immutable release;
-8. verify Setup, Portable and Android APK assets all exist.
-
-## Security boundary
-
-No build optimization may disable browser sandboxing, GPU sandboxing, site/process isolation, Safe Browsing, TLS/certificate validation, extension trust or package/update signature verification. Android likewise keeps Safe Browsing and TLS verification, blocks mixed content and does not bypass certificate errors.
+No unsigned or upstream-prebuilt browser package may be promoted as a Ghosium production release.

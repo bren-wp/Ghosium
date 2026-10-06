@@ -1,60 +1,40 @@
-# Ghosium Browser 0.0.8 Architecture
+# Ghosium Browser 0.0.9 Architecture
 
-## Product scope
+Ghosium 0.0.9 is a **Windows x64-only** browser product.
 
-Ghosium 0.0.8 has two first-class client targets sharing one release identity:
+## Engine boundary
 
-- Windows x64 source-built browser, Setup and Portable distribution;
-- Android 10+ native browser shell using the platform WebView.
+The active browser-engine baseline is Tor Browser 15.0.24 source, based on Firefox 140.17.0 ESR and Tor 0.4.9.13.
 
-Both targets are versioned `0.0.8` and are published from the same Git commit.
+The engine contract is stored in `engine/tor-browser/windows-x64.json`. It pins the official Tor Project source archive, archive SHA-256 and target platform. Chromium fallback is explicitly forbidden for the 0.0.9 release line.
 
-## 0.0.8 single-browser privacy architecture
+The repository does not vendor the full Tor Browser source tree. It stores Ghosium-owned build, branding, packaging, verification and release tooling plus the immutable upstream contract.
 
-The Windows privacy architecture remains **one Ghosium Browser application**. Direct web access and Tor routing are network capabilities inside the same `Ghosium-Browser.exe`; they are not separate browser products or separate public executables. Tor-routed state is internally isolated to prevent correlation with Direct browsing, while the visible Ghosium design/UI/UX remains the same.
+## Windows process layout
 
-The detailed contract is documented in `docs/SINGLE_BROWSER_PRIVACY.md`.
+The public executable is `Ghosium-Browser.exe`.
 
-## Windows source boundary
+The launcher resolves the packaged engine at:
 
-The repository does not vendor the complete Chromium source tree. It stores the exact upstream source/tool revisions, Ghosium branding and product metadata, reviewed source transformations, deterministic Windows build configuration, installer/release tooling and independent verification contracts.
+`runtime/firefox.exe`
 
-The controlled source builder fetches the exact pinned engine, applies Ghosium transforms, verifies the resulting source, compiles the browser, smoke-tests the runtime, measures performance and packages canonical Setup and Portable artifacts.
+The internal upstream executable name is an implementation detail. It is not a second public browser product.
 
-Ghosium-owned desktop UI uses Ghosium/Brendigo identity and `ghost://` / `ghost-untrusted://` internal namespaces. Technical Chromium/GN identifiers may remain only where required by the upstream build graph or legal attribution.
+Installed profile data is stored under the Brendigo/Ghosium application-data namespace. Portable profile data is stored beside the Portable executable in `Ghosium-Portable-Data`.
 
-## Windows profile and Portable boundary
+The launcher passes the selected profile through Firefox's `-profile <path>` interface and blocks caller attempts to override protected profile/debugging arguments.
 
-Installed profile root:
+## Packaging
 
-```text
-%LOCALAPPDATA%\Brendigo\Ghosium\User Data
-```
+The two public distribution packages are:
 
-Portable data root is located beside the Portable executable and is injected through the launcher's private `--ghosium-portable-profile=` contract. User-supplied protected arguments cannot override the profile, bundled privacy extension or configured locale.
+- `Ghosium-Browser-Setup.exe`
+- `Ghosium-Browser-Portable.exe`
 
-Portable runtime files are extracted into a versioned local cache. A staging directory is promoted only after extraction succeeds; a ready marker distinguishes complete caches from interrupted ones. Existing complete caches are reused.
+Both are generated from the same verified runtime stage and exact source identity. Production publication requires Authenticode signing, provenance evidence and SHA-256 manifests.
 
-## Android boundary
+## Privacy model
 
-Android package: `com.brendigo.ghosium`.
+Ghosium uses Tor Browser source as the privacy/anonymity baseline. The objective is to preserve Tor Browser-class first-party isolation and fingerprint-resistance behavior while applying Ghosium branding and product integration.
 
-`MainActivity` owns the native browser chrome and lifecycle. Web content is rendered by Android System WebView; Ghosium does not bundle a second embedded browser engine in the APK. The app provides local New Tab content through the app-assets HTTPS origin, navigation controls, downloads, file selection, fullscreen, Desktop Site, find/share controls and browser-data cleanup.
-
-Android privacy/security configuration blocks third-party cookies, forbids mixed content, disables WebView file/content access, keeps Safe Browsing enabled, cancels TLS certificate errors, confirms external URI schemes and recovers from renderer termination. Browser-local app data is excluded from cloud backup and device transfer.
-
-## Update and release trust boundary
-
-Windows native update validation enforces the exact first-party HTTPS endpoint, package size/SHA-256, Authenticode publisher and signed PE metadata before Setup execution.
-
-Android 0.0.8 does not introduce an unsigned self-updater. The release APK is signed with the stable Brendigo Android identity, verified with `apksigner`, and its package/version/hash/signer fingerprint are recorded as release evidence.
-
-The 0.0.8 orchestrator will not start Windows production release work until Android production signing/build verification has succeeded. Independently, the canonical Windows workflow refuses production execution on `main` unless the exact promoted release marker exists; a release-safety supervisor cancels stale or unpromoted main dispatches. The release is considered complete only after the same GitHub release contains Setup, Portable and Android APK.
-
-## Performance model
-
-Windows performance evidence comes from the controlled source-built 1/5/10-tab benchmark. Android avoids unnecessary WebView recreation, preserves/restores WebView state and uses renderer recovery rather than crashing the activity. Neither platform permits security-reducing flags as a performance shortcut.
-
-## Legal boundary
-
-Brendigo-authored Ghosium material follows the repository product license. Chromium, Android WebView, AndroidX, Material Components and other third-party components remain under their respective licenses and trademark terms.
+The release process must fail closed if the expected Tor Browser source identity, Firefox ESR identity, Tor identity or Windows target changes without review.

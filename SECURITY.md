@@ -1,45 +1,21 @@
-# Ghosium Browser Security Policy
-
-## Supported release
-
-Only the newest stable Ghosium Browser release is supported with security fixes. Older releases should be upgraded.
+# Ghosium Browser Security
 
 ## Windows security baseline
 
-Ghosium inherits a large security surface from its exact pinned upstream browser engine. Each Windows release therefore pins `ENGINE_SOURCE_REVISION`, applies reviewed transforms and reruns the full source/runtime/release pipeline.
+Ghosium 0.0.9 is Windows x64-only and uses Tor Browser 15.0.24 source, Firefox 140.17.0 ESR and Tor 0.4.9.13 as the reviewed engine baseline.
 
-The product does not disable browser/renderer/GPU sandboxing, site/process isolation, Safe Browsing, TLS/certificate validation, extension trust or update verification for performance.
+The upstream source contract is fail-closed: archive origin, version, platform and SHA-256 are pinned. Chromium fallback is forbidden for this release line.
 
-Production Windows publication requires the exact promoted release marker, successful source compilation, runtime smoke tests, measured performance evidence, canonical Setup + Portable provenance, install/update/uninstall validation, valid Authenticode signatures, update-manifest binding and SHA-256 evidence. Unpromoted main full-source runs are cancelled by repository release-safety automation.
+## Privacy invariants
 
-## Android security baseline
+The project must preserve Tor Browser's privacy and anonymity defenses as the baseline rather than treating Tor as only a SOCKS proxy.
 
-Android 0.0.8 targets API 36 with minimum API 29 and uses Android System WebView. Ghosium configures WebView to block mixed content and third-party cookies, disables direct file/content access, keeps Safe Browsing enabled where supported and cancels SSL errors. Renderer-process termination is handled through a controlled recovery path rather than leaving the activity in an invalid state.
+Do not weaken certificate validation, sandboxing, origin/process isolation, extension trust, update/package verification or Tor routing protections merely to make a build pass.
 
-Non-HTTP(S) external schemes are not launched silently; the user sees a confirmation first. File selection is delegated to Android's system document picker.
+Profile handling must use Ghosium-owned directories. Portable profile data must stay adjacent to the Portable executable and must not fall back to the installed profile.
 
-Browser-local Android data is explicitly excluded from cloud backup and device-to-device transfer.
+## Release security
 
-## Android release signing
+Production Windows publication requires exact marker promotion, verified source build evidence, runtime smoke tests, Setup/Portable provenance, valid Authenticode signatures and SHA-256 manifests.
 
-The production APK must be signed with the stable Brendigo Android release identity supplied through GitHub Actions secrets. Private key material must never be committed to the repository. Production verifies the APK with `apksigner`, records the signer certificate SHA-256, confirms package/version metadata and binds SHA-256 + byte size + source commit in `GHOSIUM-ANDROID-RELEASE.json`.
-
-If Android signing secrets are unavailable or verification fails, the 0.0.8 production orchestrator stops before dispatching the Windows production release.
-
-## Release completeness
-
-A 0.0.8 release is complete only when the exact release contains:
-
-```text
-Ghosium-Browser-Setup.exe
-Ghosium-Browser-Portable.exe
-Ghosium-Browser-Android.apk
-```
-
-and all platform-specific signing/provenance gates have succeeded.
-
-## Reporting
-
-Use the repository private vulnerability reporting / Security Advisory flow when available. Reports should include the Ghosium version, platform/OS version, minimal reproduction steps, expected/observed behavior and whether the issue appears specific to Ghosium-owned code.
-
-Public security page: https://ghosium.com/security
+A failed source, runtime, signing or provenance gate blocks publication.

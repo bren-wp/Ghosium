@@ -1,88 +1,52 @@
-<p align="center">
-  <img src="engine/branding/ghosium-mark.svg" width="112" alt="Ghosium Browser icon">
-</p>
+# Ghosium Browser 0.0.9
 
-# Ghosium Browser 0.0.8
+**Ghosium Browser by Brendigo** is a Windows x64 privacy browser. The active product version is **0.0.9**.
 
-**Ghosium Browser by Brendigo** is a privacy-focused browser product for **Windows x64** and **Android 10+**. The active product version is **0.0.8**.
+Ghosium 0.0.9 is Windows-only. The browser engine direction is pinned to the official Tor Browser 15.0.24 desktop source, based on Firefox 140.17.0 ESR with Tor 0.4.9.13. Chromium is not an allowed fallback engine for the 0.0.9 release line.
 
-Version 0.0.8 combines the pinned full-source Windows engine build with a native Android browser shell and introduces the single-browser privacy/Tor foundation. Publication is fail-closed: the exact release commit must pass repository contracts, Windows source-build/runtime/package/signing gates and Android unit/lint/minified-release/signing verification before the release is considered complete. Production full-source Windows work on `main` additionally requires the exact promoted `.release/ghosium-v0.0.8.request` marker; unpromoted main runs are cancelled by the release-safety supervisor.
+## Product boundary
 
-## Product identity
+Public Windows artifacts:
 
-- Product: **Ghosium Browser**
-- Publisher: **Brendigo**
-- Windows: x64 Setup and registry-free Portable packages
-- Android package: `com.brendigo.ghosium`
-- Android support baseline: API 29 / Android 10+
-- Home: `https://ghosium.com/`
-- Store: `https://store.ghosium.com/`
-- Updates: `https://updates.ghosium.com/`
-- Support: `https://ghosium.com/support`
-- Security: `https://ghosium.com/security`
-- Privacy: `https://ghosium.com/legal/privacy-policy`
-- Default external web search provider: DuckDuckGo
+- `Ghosium-Browser.exe`
+- `Ghosium-Browser-Setup.exe`
+- `Ghosium-Browser-Portable.exe`
 
-## Windows 0.0.8
+The public launcher starts the internally packaged Tor Browser/Firefox runtime from `runtime/firefox.exe`. Installed and Portable profiles are isolated through Firefox's `-profile` argument. The Portable package keeps its profile in `Ghosium-Portable-Data` beside the executable.
 
-The Windows product is compiled from the exact pinned upstream engine revision in `ENGINE_SOURCE_REVISION`. Ghosium source transforms apply product identity, `ghost://` internal routes, New Tab behavior, privacy defaults, update integration and native performance defaults while preserving sandboxing, site/process isolation and TLS/certificate validation. Ghosium's privacy direction explicitly forbids background Google-owned product services; user-initiated navigation to ordinary websites remains normal.
+## Tor Browser source baseline
 
-The documented Ghosium internal route contract is:
+The reviewed upstream contract lives at:
 
-- `ghost://newtab/`
-- `ghost://history/`
-- `ghost://bookmarks/`
-- `ghost://downloads/`
-- `ghost://settings/`
-- `ghost://profiles/`
-- `ghost://extensions/`
-- `ghost://passwords/`
+`engine/tor-browser/windows-x64.json`
 
-0.0.8 also hardens the compatibility/Portable and integrated privacy-routing layer:
+It pins:
 
-- installed profile root is `%LOCALAPPDATA%\Brendigo\Ghosium\User Data`;
-- Portable uses a private launcher profile contract and stores data beside the Portable executable;
-- Portable runtime extraction is version-cached rather than repeated on every launch;
-- cache preparation uses staging + ready-marker semantics so interrupted extraction cannot be treated as complete;
-- protected engine arguments cannot override the Ghosium profile, extension, language or security contract;
-- noninteractive QA/headless launch paths fail with exit codes rather than modal dialogs.
+- Tor Browser: 15.0.24
+- Firefox: 140.17.0 ESR
+- Tor: 0.4.9.13
+- target: Windows x86_64
+- official Tor Project source archive and SHA-256
+- Chromium fallback: disabled
 
-## Android 0.0.8
+`scripts/verify-tor-browser-upstream.ps1` validates that contract and `scripts/bootstrap-tor-browser-source.ps1` performs hash-verified source acquisition and extraction.
 
-The Android application lives in `android/` and uses the platform WebView inside a Ghosium-owned native shell. It provides URL/search entry, Back/Forward/Home/Reload, local New Tab, download handling, file chooser, fullscreen media, Desktop Site, Find in Page, Share, clear-browsing-data controls, state restoration and renderer recovery.
+## Release safety
 
-Privacy/security defaults include blocked third-party cookies, mixed-content blocking, file/content access disabled for WebView, Safe Browsing, fail-closed TLS errors, confirmation before external URI schemes and disabled Android cloud/device-transfer backup for browser data. No analytics/advertising SDK is included.
+0.0.9 remains fail-closed until the exact Windows release candidate passes source-integrity, build, runtime, Setup, Portable, signing and provenance gates. The checked-in Windows updater manifest remains disabled until canonical publication.
 
-## Release assets
+No release workflow may silently substitute a Chromium build, an upstream prebuilt browser binary or an unsigned public package.
 
-A complete 0.0.8 production release must contain at least:
+## Privacy and security
 
-```text
-Ghosium-Browser-Setup.exe
-Ghosium-Browser-Portable.exe
-Ghosium-Browser-Android.apk
-```
+Ghosium preserves the Tor Browser anonymity model as the source baseline rather than treating Tor as only a proxy. Security-reducing shortcuts such as disabling certificate validation or browser sandbox protections are forbidden.
 
-The Windows packages must be produced by the canonical full-source workflow and pass Authenticode/provenance/lifecycle gates. The Android APK must be minified, signed with the stable Brendigo Android release identity, verified with `apksigner`, bound to `com.brendigo.ghosium` version `0.0.8`, and accompanied by Android provenance evidence.
-
-## Development and verification
-
-- Windows full-source build: `.github/workflows/full-source-windows-build.yml`
-- Release-safety supervisor: `.github/workflows/release-safety-supervisor.yml`
-- Cross-platform 0.0.8 QA: `.github/workflows/ghosium-0.0.8-quality.yml`
-- Android release-candidate QA: `.github/workflows/ghosium-0.0.8-android-release-candidate.yml`
-- Production 0.0.8 orchestration: `.github/workflows/ghosium-0.0.8-production-release.yml`
-- Windows build documentation: `BUILDING.md`
-- Android documentation: `android/README.md`
-- Release procedure: `docs/RELEASE.md`
-- Architecture: `ARCHITECTURE.md`
-- Privacy: `PRIVACY.md`
-- Security: `SECURITY.md`
-
-The checked-in Windows update manifest remains fail-closed until canonical publication (`enabled:false`, empty SHA-256, zero size). Numerical performance claims are made only from exact-build evidence generated by the controlled benchmark workflow.
+User-visible Ghosium branding must not imply endorsement by the Tor Project. Tor Browser, Firefox, Tor and other third-party components remain governed by their respective licenses and trademark policies.
 
 ## License and third-party rights
 
-Brendigo-authored Ghosium material is governed by the **Brendigo Proprietary Commercial Software License Agreement** in `LICENSE`. Public repository visibility does not by itself grant an open-source license to Brendigo-authored proprietary material.
+Brendigo-authored Ghosium material is governed by the **Brendigo Proprietary Commercial Software License Agreement** in `LICENSE`.
 
-Chromium and every other third-party or open-source component remain governed by their own licenses. Android WebView, AndroidX, Material Components and other third-party components likewise remain governed by their applicable licenses and notices. Required attribution is preserved in `THIRD_PARTY_NOTICES.md` and applicable bundled material.
+Public repository visibility does not by itself grant an open-source license to Brendigo-authored material.
+
+Tor Browser, Firefox ESR, Tor and every other third-party or open-source component remain governed by their own licenses and trademark terms. Required notices are preserved in `THIRD_PARTY_NOTICES.md`.

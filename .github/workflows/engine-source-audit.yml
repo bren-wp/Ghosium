@@ -1,34 +1,30 @@
-name: Ghosium Full-Source Engine Audit
+name: Ghosium Tor Browser Engine Audit
 
 on:
   pull_request:
     branches:
       - main
     paths:
-      - 'ENGINE_REVISION'
-      - 'ENGINE_SOURCE_REVISION'
       - 'VERSION'
       - 'engine/**'
-      - 'scripts/*engine*.ps1'
-      - 'scripts/stage-tor-runtime.ps1'
-      - 'scripts/verify-single-browser-privacy.ps1'
-      - 'scripts/generate-engine-brand-assets.py'
+      - 'scripts/bootstrap-tor-browser-source.ps1'
+      - 'scripts/verify-tor-browser-upstream.ps1'
+      - 'scripts/rebrand-tor-browser-source.ps1'
+      - 'scripts/verify-tor-browser-branding.ps1'
       - '.github/workflows/engine-source-audit.yml'
-      - '.github/workflows/full-source-windows-build.yml'
+      - '.github/workflows/tor-browser-windows-build.yml'
   push:
     branches:
       - main
     paths:
-      - 'ENGINE_REVISION'
-      - 'ENGINE_SOURCE_REVISION'
       - 'VERSION'
       - 'engine/**'
-      - 'scripts/*engine*.ps1'
-      - 'scripts/stage-tor-runtime.ps1'
-      - 'scripts/verify-single-browser-privacy.ps1'
-      - 'scripts/generate-engine-brand-assets.py'
+      - 'scripts/bootstrap-tor-browser-source.ps1'
+      - 'scripts/verify-tor-browser-upstream.ps1'
+      - 'scripts/rebrand-tor-browser-source.ps1'
+      - 'scripts/verify-tor-browser-branding.ps1'
       - '.github/workflows/engine-source-audit.yml'
-      - '.github/workflows/full-source-windows-build.yml'
+      - '.github/workflows/tor-browser-windows-build.yml'
   workflow_dispatch:
 
 permissions:
@@ -36,10 +32,9 @@ permissions:
 
 jobs:
   source-contract:
-    name: Verify pinned source and Ghosium invariants
-    runs-on: ubuntu-latest
+    name: Verify Tor Browser / Firefox ESR Windows source contract
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
-
     steps:
       - name: Checkout
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
@@ -47,52 +42,15 @@ jobs:
           persist-credentials: false
           fetch-depth: 1
 
-      - name: Validate source transformation tooling
+      - name: Parse Windows engine tooling
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
           foreach ($path in @(
-            'scripts/bootstrap-engine-source.ps1',
-            'scripts/apply-engine-branding.ps1',
-            'scripts/rebrand-engine-locales.ps1',
-            'scripts/rewrite-engine-product-links.ps1',
-            'scripts/rewrite-engine-default-search.ps1',
-            'scripts/rewrite-engine-windows-identity.ps1',
-            'scripts/rewrite-engine-windows-executable.ps1',
-            'scripts/rewrite-engine-product-version.ps1',
-            'scripts/rewrite-engine-version-updater.ps1',
-            'scripts/rewrite-engine-public-surfaces.ps1',
-            'scripts/rewrite-engine-browser-signin.ps1',
-            'scripts/verify-engine-browser-signin.ps1',
-            'scripts/rewrite-engine-profile-picker-local-only.ps1',
-            'scripts/verify-engine-profile-picker-local-only.ps1',
-            'scripts/rewrite-engine-local-profile-surfaces.ps1',
-            'scripts/verify-engine-local-profile-surfaces.ps1',
-            'scripts/rewrite-engine-app-menu-account-surfaces.ps1',
-            'scripts/verify-engine-app-menu-account-surfaces.ps1',
-            'scripts/rewrite-engine-disable-unowned-promos.ps1',
-            'scripts/verify-engine-disable-unowned-promos.ps1',
-            'scripts/rewrite-engine-upstream-public-actions.ps1',
-            'scripts/verify-engine-upstream-public-actions.ps1',
-            'scripts/rewrite-engine-disable-google-services.ps1',
-            'scripts/rewrite-engine-tor-route.ps1',
-            'scripts/rewrite-engine-onion-guard.ps1',
-            'scripts/rewrite-engine-tor-menu.ps1',
-            'scripts/rewrite-engine-public-branding-complete.ps1',
-            'scripts/verify-engine-public-branding-complete.ps1',
-            'scripts/verify-engine-public-surfaces.ps1',
-            'scripts/harden-engine-version-updater.ps1',
-            'scripts/verify-engine-version-updater.ps1',
-            'scripts/rewrite-engine-internal-scheme.ps1',
-            'scripts/rewrite-engine-performance-defaults.ps1',
-            'scripts/verify-engine-performance-defaults.ps1',
-            'scripts/verify-engine-locales.ps1',
-            'scripts/verify-engine-fork.ps1',
-            'scripts/verify-engine-windows-executable.ps1',
-            'scripts/configure-engine-build.ps1',
-            'scripts/verify-engine-build-output.ps1',
-            'scripts/stage-tor-runtime.ps1',
-            'scripts/verify-single-browser-privacy.ps1'
+            'scripts/verify-tor-browser-upstream.ps1',
+            'scripts/bootstrap-tor-browser-source.ps1',
+            'scripts/rebrand-tor-browser-source.ps1',
+            'scripts/verify-tor-browser-branding.ps1'
           )) {
             $tokens = $null
             $errors = $null
@@ -103,329 +61,71 @@ jobs:
               throw "PowerShell parser errors found in $path"
             }
           }
-          python3 -m py_compile scripts/generate-engine-brand-assets.py scripts/verify-pinned-source-anchors.py
-          if ($LASTEXITCODE -ne 0) {
-            throw 'Ghosium source-audit Python tooling has syntax errors.'
-          }
 
-      - name: Validate pinned revisions and Windows source-build contract
+      - name: Verify pinned Tor Browser upstream contract
         shell: pwsh
+        run: ./scripts/verify-tor-browser-upstream.ps1
+
+      - name: Verify Windows-only engine migration invariants
+        shell: python
         run: |
-          $ErrorActionPreference = 'Stop'
-          foreach ($revisionFile in @('ENGINE_SOURCE_REVISION')) {
-            $value = (Get-Content $revisionFile -Raw).Trim()
-            if ($value -notmatch '^[0-9a-f]{40}$') {
-              throw "$revisionFile must contain one exact 40-character Git commit."
-            }
-          }
+          import json
+          from pathlib import Path
 
-          $argsPath = 'engine/build/windows-x64.args.gn'
-          if (!(Test-Path $argsPath -PathType Leaf)) {
-            throw "Missing deterministic Windows GN args: $argsPath"
-          }
-          $args = Get-Content $argsPath -Raw
-          foreach ($required in @(
-            'is_debug = false',
-            'is_component_build = false',
-            'is_official_build = false',
-            'is_chrome_branded = false',
-            'target_cpu = "x64"',
-            'enable_background_mode = false',
-            'use_remoteexec = false'
-          )) {
-            if (!$args.Contains($required)) {
-              throw "Windows source-build args are missing required invariant: $required"
-            }
-          }
-          foreach ($forbidden in @(
-            '(?im)^\s*is_chrome_branded\s*=\s*true\s*$',
-            '(?im)^\s*is_official_build\s*=\s*true\s*$',
-            '(?im)^\s*enable_background_mode\s*=\s*true\s*$',
-            '(?im)^\s*use_remoteexec\s*=\s*true\s*$',
-            '(?im)^\s*google_api_key\s*=',
-            '(?im)^\s*google_default_client_id\s*=',
-            '(?im)^\s*google_default_client_secret\s*='
-          )) {
-            if ($args -match $forbidden) {
-              throw "Windows source-build args contain forbidden active configuration: $forbidden"
-            }
-          }
+          version = Path('VERSION').read_text(encoding='utf-8').strip()
+          if version != '0.0.9':
+              raise SystemExit(f'Expected Windows engine baseline 0.0.9, got {version!r}')
 
-          $workflow = Get-Content '.github/workflows/full-source-windows-build.yml' -Raw
-          foreach ($required in @(
-            'workflow_dispatch:',
-            'ghosium-source-builder',
-            'bootstrap-engine-source.ps1',
-            'apply-engine-branding.ps1',
-            'configure-engine-build.ps1',
-            'autoninja -C out/Ghosium chrome mini_installer',
-            'verify-engine-build-output.ps1',
-            'build-source-release-installer.ps1',
-            'GHOSIUM-CANONICAL-SETUP-SMOKE.json'
-          )) {
-            if (!$workflow.Contains($required)) {
-              throw "Full-source Windows workflow is missing required stage: $required"
-            }
+          contract = json.loads(Path('engine/tor-browser/windows-x64.json').read_text(encoding='utf-8'))
+          expected = {
+              'torBrowserVersion': '15.0.24',
+              'firefoxVersion': '140.17.0esr',
+              'torVersion': '0.4.9.13',
+              'targetPlatform': 'windows-x86_64',
+              'chromiumFallbackAllowed': False,
           }
-          if ($workflow -match '(?m)^\s*pull_request\s*:' -or $workflow -match '(?m)^\s*push\s*:') {
-            throw 'Heavy full-source Windows build must remain explicit manual/self-hosted workflow.'
-          }
+          for key, value in expected.items():
+              if contract.get(key) != value:
+                  raise SystemExit(f'Tor Browser contract mismatch for {key}: {contract.get(key)!r}')
 
-      - name: Validate deterministic brand assets and product configuration
-        shell: pwsh
+          if not contract.get('sourceUrl', '').startswith(
+              'https://archive.torproject.org/tor-package-archive/torbrowser/15.0.24/'
+          ):
+              raise SystemExit('Tor Browser source origin is not the official Tor Project archive.')
+
+          bootstrap = Path('scripts/bootstrap-tor-browser-source.ps1').read_text(encoding='utf-8')
+          for token in (
+              'Get-FileHash $Path -Algorithm SHA256',
+              'Downloaded Tor Browser source failed the pinned SHA-256 contract.',
+              "foreach ($required in @('browser','toolkit','dom','netwerk','security'))",
+              'Pinned Tor Browser source is missing the Mozilla mach build entrypoint.',
+              'chromiumFallbackAllowed = $false',
+          ):
+              if token not in bootstrap:
+                  raise SystemExit(f'Tor Browser bootstrap contract missing: {token}')
+
+          active_docs = (
+              Path('README.md').read_text(encoding='utf-8'),
+              Path('ARCHITECTURE.md').read_text(encoding='utf-8'),
+              Path('BUILDING.md').read_text(encoding='utf-8'),
+              Path('engine/README.md').read_text(encoding='utf-8'),
+          )
+          joined = '\n'.join(active_docs)
+          if 'Chromium fallback is forbidden' not in joined and 'Chromium fallback is explicitly forbidden' not in joined:
+              raise SystemExit('Active engine documentation does not explicitly forbid Chromium fallback.')
+
+          print('Ghosium Tor Browser / Firefox ESR Windows engine contract: OK')
+
+      - name: Verify no active Chromium production builder reference
+        shell: python
         run: |
-          $ErrorActionPreference = 'Stop'
-          $assetRoot = Join-Path $env:RUNNER_TEMP 'ghosium-brand-assets'
-          python3 scripts/generate-engine-brand-assets.py $assetRoot
-          if ($LASTEXITCODE -ne 0) {
-            throw 'Ghosium deterministic brand asset generation failed.'
-          }
-          foreach ($relative in @(
-            'chrome/app/theme/default_100_percent/chromium/product_logo_32.png',
-            'chrome/app/theme/chromium/win/chromium.ico'
-          )) {
-            $path = Join-Path $assetRoot $relative
-            if (!(Test-Path $path -PathType Leaf) -or (Get-Item $path).Length -le 100) {
-              throw "Generated Ghosium brand asset is missing or empty: $relative"
-            }
-          }
+          from pathlib import Path
 
-          $config = Get-Content 'engine/branding/product.json' -Raw | ConvertFrom-Json
-          if ([string]$config.internalUi.scheme -ne 'ghost' -or
-              [string]$config.internalUi.untrustedScheme -ne 'ghost-untrusted') {
-            throw 'Ghosium internal UI schemes must be ghost / ghost-untrusted.'
-          }
-          if ([string]$config.locales.default -ne 'en-US' -or [string]$config.locales.required -ne 'hr') {
-            throw 'Ghosium locale contract requires English primary/default and Croatian required.'
-          }
-          if (@($config.locales.supported).Count -ne 38) {
-            throw 'Ghosium product configuration must contain exactly 38 supported locales.'
-          }
-          foreach ($route in @(
-            'ghost://newtab/',
-            'ghost://history/',
-            'ghost://bookmarks/',
-            'ghost://downloads/',
-            'ghost://settings/',
-            'ghost://profiles/',
-            'ghost://extensions/',
-            'ghost://passwords/'
-          )) {
-            if (@($config.internalUi.routes) -notcontains $route) {
-              throw "Missing Ghosium internal route: $route"
-            }
-          }
-
-  pinned-source-smoke:
-    name: Apply Ghosium transform to pinned source
-    needs: source-contract
-    runs-on: ubuntu-latest
-    timeout-minutes: 90
-
-    steps:
-      - name: Checkout Ghosium fork tooling
-        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
-        with:
-          persist-credentials: false
-          fetch-depth: 1
-
-      - name: Sparse checkout pinned source
-        shell: bash
-        run: |
-          set -euo pipefail
-          src="${RUNNER_TEMP}/ghosium-engine-src"
-          revision="$(tr -d '\r\n ' < ENGINE_SOURCE_REVISION)"
-
-          git init "$src"
-          git -C "$src" remote add origin https://github.com/chromium/chromium.git
-          git -C "$src" config core.sparseCheckout true
-          mkdir -p "$src/.git/info"
-          cat > "$src/.git/info/sparse-checkout" <<'EOF'
-          /build/win/reorder-imports.py
-          /chrome/BUILD.gn
-          /chrome/app/chrome_exe.ver
-          /chrome/app/chromium_strings.grd
-          /chrome/app/settings_chromium_strings.grdp
-          /chrome/app/settings_strings.grdp
-          /chrome/app/shared_settings_strings.grdp
-          /chrome/app/glic_strings.grdp
-          /chrome/app/resources/
-          /chrome/app/theme/chromium/
-          /chrome/chrome_proxy/BUILD.gn
-          /chrome/chrome_proxy/chrome_proxy.ver
-          /chrome/chrome_proxy/chrome_proxy_main_win.cc
-          /chrome/common/url_constants.h
-          /chrome/common/webui_url_constants.h
-          /chrome/install_static/chromium_install_modes.h
-          /chrome/installer/launcher_support/chrome_launcher_support.cc
-          /chrome/installer/mini_installer/BUILD.gn
-          /chrome/installer/mini_installer/chrome.release
-          /chrome/installer/setup/setup_constants.cc
-          /chrome/installer/setup/setup_main.cc
-          /chrome/installer/setup/uninstall.cc
-          /chrome/installer/setup/install_worker.cc
-          /chrome/installer/util/util_constants.h
-          /chrome/browser/browser_about_handler.cc
-          /chrome/app/chrome_command_ids.h
-          /chrome/app/chrome_main_delegate.cc
-          /chrome/browser/chrome_content_browser_client_navigation_throttles.cc
-          /chrome/browser/domain_reliability/service_factory.cc
-          /chrome/browser/media/webrtc/webrtc_log_uploader.cc
-          /chrome/browser/resources/intro/
-          /chrome/browser/signin/account_consistency_mode_manager.cc
-          /chrome/browser/ui/browser_actions.cc
-          /chrome/browser/ui/browser_command_controller.cc
-          /chrome/browser/ui/browser_ui_prefs.cc
-          /chrome/browser/ui/profiles/profile_view_utils.cc
-          /chrome/browser/ui/toolbar/app_menu_model.cc
-          /chrome/browser/ui/views/profiles/profile_menu_view.cc
-          /chrome/browser/ui/views/toolbar/app_menu.cc
-          /chrome/browser/ui/webui/intro/intro_ui.cc
-          /components/autofill/core/browser/crowdsourcing/autofill_crowdsourcing_manager.cc
-          /components/crash/core/app/crash_reporter_client.cc
-          /components/desktop_to_mobile_promos/features.cc
-          /components/gcm_driver/gcm_driver_desktop.cc
-          /components/network_time/network_time_tracker.cc
-          /components/subscription_eligibility/subscription_eligibility_service.cc
-          /components/variations/net/variations_http_headers.cc
-          /components/variations/service/variations_service.cc
-          /chrome/browser/extensions/extension_ui_util.cc
-          /chrome/browser/resources/settings/
-          /chrome/browser/resources/new_tab_page/
-          /chrome/browser/resources/history/
-          /chrome/browser/resources/bookmarks/
-          /chrome/browser/resources/downloads/
-          /chrome/browser/resources/extensions/
-          /chrome/browser/resources/password_manager/
-          /chrome/browser/resources/print_preview/
-          /chrome/browser/resources/pdf/
-          /chrome/browser/resources/signin/
-          /chrome/browser/resources/contextual_tasks/top_toolbar_logo.html.ts
-          /chrome/browser/ui/chrome_pages.cc
-          /chrome/browser/ui/webui/settings/settings_ui.cc
-          /chrome/browser/ui/webui/version/version_ui.cc
-          /chrome/browser/ui/webui/help/BUILD.gn
-          /chrome/browser/ui/webui/help/version_updater_basic.cc
-          /chrome/browser/ui/webui/side_panel/customize_chrome/customize_chrome_page_handler.cc
-          /chrome/browser/ui/webui/extensions/extensions_ui.cc
-          /chrome/browser/ui/webui/password_manager/password_manager_ui.h
-          /chrome/browser/ui/webui/password_manager/password_manager_ui.cc
-          /chrome/browser/ui/webui/signin/profile_picker_ui.h
-          /chrome/browser/ui/webui/signin/profile_picker_ui.cc
-          /components/components_chromium_strings.grd
-          /components/password_manager/content/common/web_ui_constants.h
-          /components/performance_manager/user_tuning/prefs.cc
-          /components/search_engines/template_url_prepopulate_data.cc
-          /components/security_interstitials/
-          /components/error_page/
-          /components/strings/
-          /components/vector_icons/chromium/
-          /content/public/common/url_constants.h
-          /extensions/strings/
-          /ui/webui/resources/
-          EOF
-
-          git -C "$src" fetch --depth=1 --filter=blob:none origin "$revision"
-          git -C "$src" checkout --detach FETCH_HEAD
-          test "$(git -C "$src" rev-parse HEAD)" = "$revision"
-          echo "ENGINE_SRC=$src" >> "$GITHUB_ENV"
-
-      - name: Apply complete Ghosium source transform
-        shell: pwsh
-        run: |
-          $ErrorActionPreference = 'Stop'
-          ./scripts/apply-engine-branding.ps1 -SourceRoot $env:ENGINE_SRC
-          ./scripts/rewrite-engine-performance-defaults.ps1 -SourceRoot $env:ENGINE_SRC
-          ./scripts/verify-engine-performance-defaults.ps1 -SourceRoot $env:ENGINE_SRC
-          ./scripts/verify-engine-fork.ps1 -SourceRoot $env:ENGINE_SRC
-          ./scripts/verify-engine-windows-executable.ps1 -SourceRoot $env:ENGINE_SRC
-          ./scripts/verify-engine-version-updater.ps1 -SourceRoot $env:ENGINE_SRC
-          $brandingEvidence = Join-Path $env:RUNNER_TEMP 'ghosium-public-branding-audit.json'
-          ./scripts/verify-engine-public-branding-complete.ps1 -SourceRoot $env:ENGINE_SRC -EvidencePath $brandingEvidence
-          Get-Content $brandingEvidence -Raw
-
-      - name: Validate Ghosium updater performance and public source identity
-        shell: bash
-        run: |
-          set -euo pipefail
-          src="$ENGINE_SRC"
-          product_version="$(tr -d '\r\n ' < VERSION)"
-          updater="$src/chrome/browser/ui/webui/help/version_updater_ghosium_win.cc"
-          performance_prefs="$src/components/performance_manager/user_tuning/prefs.cc"
-          webui_constants="$src/chrome/common/webui_url_constants.h"
-          password_constants="$src/components/password_manager/content/common/web_ui_constants.h"
-          about_handler="$src/chrome/browser/browser_about_handler.cc"
-
-          git -C "$src" diff --check
-          test -f "$updater"
-          test -f "$performance_prefs"
-          test -f "$password_constants"
-          grep -F 'https://updates.ghosium.com/windows/stable.json' "$updater"
-          grep -F 'CredentialsMode::kOmit' "$updater"
-          grep -F 'crypto::hash::HashFile' "$updater"
-          grep -F 'base::win::IsBinaryTrusted' "$updater"
-          grep -F 'true /* force_verify_in_dev_builds */' "$updater"
-          grep -F 'AppendArgNative(L"/S")' "$updater"
-          grep -F 'AppendArgNative(L"/UPDATE")' "$updater"
-          grep -F 'AppendArgNative(L"/DELETESELF")' "$updater"
-
-          grep -F 'Customize Ghosium' "$src/chrome/app/chromium_strings.grd"
-          grep -F 'return PrepopulatedEngineToTemplateURLData(&duckduckgo);' "$src/components/search_engines/template_url_prepopulate_data.cc"
-          if grep -Fq 'google.id,' "$src/components/search_engines/template_url_prepopulate_data.cc" || \
-             grep -Fq '/*use_first_as_fallback=*/true' "$src/components/search_engines/template_url_prepopulate_data.cc" || \
-             grep -Fq 'Ghosium Search' "$src/components/search_engines/template_url_prepopulate_data.cc" || \
-             grep -Fq 'search.ghosium.com' "$src/components/search_engines/template_url_prepopulate_data.cc"; then
-            echo 'Google/retired search fallback source integration returned.' >&2
-            exit 1
-          fi
-
-          grep -F 'Ghosium privacy: Google Cloud Messaging is not a browser dependency.' "$src/components/gcm_driver/gcm_driver_desktop.cc"
-          grep -F 'Ghosium privacy: no remote variations/field-trial seed fetching.' "$src/components/variations/service/variations_service.cc"
-          grep -F 'Ghosium privacy: never attach experiment identifiers to web requests.' "$src/components/variations/net/variations_http_headers.cc"
-          grep -F 'Ghosium privacy: do not query or upload form structure to Google Autofill.' "$src/components/autofill/core/browser/crowdsourcing/autofill_crowdsourcing_manager.cc"
-          grep -F 'Ghosium integrated Tor route' "$src/chrome/app/chrome_main_delegate.cc"
-          grep -F 'MAP *.onion ~NOTFOUND' "$src/chrome/app/chrome_main_delegate.cc"
-          grep -F 'Ghosium Direct-mode onion navigation guard' "$src/chrome/browser/chrome_content_browser_client_navigation_throttles.cc"
-          grep -F 'IDS_NEW_GHOSIUM_TOR_WINDOW' "$src/chrome/browser/ui/toolbar/app_menu_model.cc"
-          grep -F 'IDS_NEW_GHOSIUM_TOR_WINDOW' "$src/chrome/app/chromium_strings.grd"
-          grep -F 'kCompanyPathName[] = L"Brendigo"' "$src/chrome/install_static/chromium_install_modes.h"
-          grep -F 'kProductPathName[] = L"Ghosium"' "$src/chrome/install_static/chromium_install_modes.h"
-          grep -F '$root_out_dir/Ghosium-Browser.exe' "$src/chrome/BUILD.gn"
-          grep -F 'ORIGINAL_FILENAME=Ghosium-Browser.exe' "$src/chrome/app/chrome_exe.ver"
-          grep -F 'Ghosium-Browser.exe: %(ChromeDir)s\' "$src/chrome/installer/mini_installer/chrome.release"
-          grep -F 'Ghosium-Proxy.exe: %(ChromeDir)s\' "$src/chrome/installer/mini_installer/chrome.release"
-          grep -F 'kChromeExe[] = L"Ghosium-Browser.exe"' "$src/chrome/installer/util/util_constants.h"
-          grep -F 'kChromeProxyExe[] = L"Ghosium-Proxy.exe"' "$src/chrome/installer/util/util_constants.h"
-          grep -F 'kChromeUIScheme[] = "ghost"' "$src/content/public/common/url_constants.h"
-          grep -F 'kChromeUIUntrustedScheme[] = "ghost-untrusted"' "$src/content/public/common/url_constants.h"
-
-          grep -F 'kChromeUIProfilePickerHost[] = "profiles"' "$webui_constants"
-          grep -F 'kChromeUIProfilePickerUrl[] = "ghost://profiles/"' "$webui_constants"
-          grep -F 'kChromeUIPasswordManagerHost[] = "passwords"' "$password_constants"
-          grep -F 'ghost://passwords/checkup?start=true' "$webui_constants"
-          grep -F 'ghost://passwords/settings' "$webui_constants"
-          grep -F 'chrome::kChromeUIProfilePickerHost' "$src/chrome/browser/ui/webui/signin/profile_picker_ui.h"
-          grep -F 'password_manager::kChromeUIPasswordManagerHost' "$src/chrome/browser/ui/webui/password_manager/password_manager_ui.h"
-          if grep -Fq 'GURL("ghost://settings/manageProfile")' "$about_handler" ||
-             grep -Fq 'GURL("ghost://password-manager/")' "$about_handler"; then
-            echo 'Canonical profiles/passwords WebUIs regressed to redirect aliases.' >&2
-            exit 1
-          fi
-
-          grep -F 'kMemorySaverModeState, static_cast<int>(MemorySaverModeState::kEnabled));' "$performance_prefs"
-          grep -F 'static_cast<int>(MemorySaverModeAggressiveness::kMedium)' "$performance_prefs"
-          grep -F 'RegisterBooleanPref(kTabFreezingEnabled, true)' "$performance_prefs"
-
-          test -f "$src/chrome/common/ghosium_product_version.h"
-          grep -F "kProductVersion[] = \"${product_version}\"" "$src/chrome/common/ghosium_product_version.h"
-
-          if grep -Eqi '(^|[^A-Za-z])(powershell|cmd|curl)(\.exe)?|GoogleUpdate|google_update_win|(^|[^A-Za-z])(update|updater)\.exe' "$updater"; then
-            echo 'Native Ghosium updater contains a forbidden shell, external updater, or standalone updater dependency.' >&2
-            exit 1
-          fi
-          if git -C "$src" status --porcelain=v1 -- third_party | grep -q .; then
-            echo 'Ghosium source transform modified third_party source.' >&2
-            exit 1
-          fi
-
-          git -C "$src" status --short
+          production = Path('.github/workflows/ghosium-0.0.9-production-release.yml').read_text(encoding='utf-8')
+          if 'full-source-windows-build.yml' in production:
+              raise SystemExit(
+                  '0.0.9 production still dispatches the Chromium full-source workflow. '
+                  'Switch production to tor-browser-windows-build.yml before publication.'
+              )
+          if 'tor-browser-windows-build.yml' not in production:
+              raise SystemExit('0.0.9 production does not reference the Tor Browser Windows builder.')

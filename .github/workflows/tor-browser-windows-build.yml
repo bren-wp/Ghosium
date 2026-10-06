@@ -1,0 +1,222 @@
+name: Ghosium Tor Browser Windows Build
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - 'ghosium/0.0.9-*'
+    paths:
+      - 'VERSION'
+      - 'engine/tor-browser/**'
+      - 'scripts/bootstrap-tor-browser-source.ps1'
+      - 'scripts/verify-tor-browser-upstream.ps1'
+      - 'scripts/rebrand-tor-browser-source.ps1'
+      - 'scripts/verify-tor-browser-branding.ps1'
+      - 'compat-preview/launcher/**'
+      - 'installer/**'
+      - '.github/workflows/tor-browser-windows-build.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ghosium-tor-browser-windows-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Validate Windows Tor Browser contract
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    outputs:
+      version: ${{ steps.contract.outputs.version }}
+    steps:
+      - name: Checkout exact commit
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+      - name: Validate product and upstream pin
+        id: contract
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $version = (Get-Content VERSION -Raw).Trim()
+          if ($version -ne '0.0.9') { throw "Expected 0.0.9, got $version" }
+          if (Test-Path android) { throw 'Windows-only product contains Android source.' }
+          ./scripts/verify-tor-browser-upstream.ps1
+          "version=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+      - name: Require promoted marker on main
+        if: github.ref == 'refs/heads/main'
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="$(tr -d '\r\n ' < VERSION)"
+          tag="ghosium-v$version"
+          marker=".release/$tag.request"
+          test -f "$marker"
+          test "$(tr -d '\r\n ' < "$marker")" = "$tag"
+
+  build-engine:
+    name: Cross-build Tor Browser Firefox runtime for Windows x64
+    needs: validate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 420
+    steps:
+      - name: Checkout Ghosium build tooling
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+      - name: Install host prerequisites
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y build-essential autoconf2.13 clang cmake curl git libtool m4 nasm nodejs python3 python3-pip python3-venv unzip wget xz-utils yasm zip
+      - name: Bootstrap hash-pinned Tor Browser source
+        id: source
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $destination = Join-Path $env:RUNNER_TEMP 'ghosium-tor-browser-source'
+          New-Item -ItemType Directory -Force -Path $destination | Out-Null
+          ./scripts/bootstrap-tor-browser-source.ps1 -Destination $destination
+          $root = @(Get-ChildItem $destination -Directory -Force)
+          if ($root.Count -ne 1) { throw "Expected one source root, found $($root.Count)" }
+          "root=$($root[0].FullName)" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+      - name: Apply and verify Ghosium source branding
+        shell: pwsh
+        env:
+          SOURCE_ROOT: ${{ steps.source.outputs.root }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          ./scripts/rebrand-tor-browser-source.ps1 -SourceRoot $env:SOURCE_ROOT
+          ./scripts/verify-tor-browser-branding.ps1 -SourceRoot $env:SOURCE_ROOT
+
+      - name: Configure Windows x64 cross-build
+        shell: bash
+        env:
+          SOURCE_ROOT: ${{ steps.source.outputs.root }}
+        run: |
+          set -euo pipefail
+          cat > "$SOURCE_ROOT/mozconfig" <<'EOF'
+          ac_add_options --target=x86_64-pc-windows-msvc
+          ac_add_options --enable-bootstrap
+          ac_add_options --enable-application=browser
+          ac_add_options --disable-debug
+          ac_add_options --enable-optimize
+          ac_add_options --disable-tests
+          mk_add_options MOZ_OBJDIR=@TOPSRCDIR@/obj-ghosium
+          EOF
+      - name: Build and package source runtime
+        shell: bash
+        env:
+          SOURCE_ROOT: ${{ steps.source.outputs.root }}
+        run: |
+          set -euo pipefail
+          cd "$SOURCE_ROOT"
+          ./mach build
+          ./mach package
+          package="$(find obj-ghosium/dist -maxdepth 1 -type f -name '*.zip' -print | sort | head -n1)"
+          test -n "$package"
+          test -s "$package"
+          mkdir -p "$GITHUB_WORKSPACE/artifacts/engine"
+          cp "$package" "$GITHUB_WORKSPACE/artifacts/engine/"
+          cp "$GITHUB_WORKSPACE/engine/tor-browser/windows-x64.json" "$GITHUB_WORKSPACE/artifacts/engine/GHOSIUM-TOR-BROWSER-UPSTREAM.json"
+          cp "$RUNNER_TEMP/ghosium-tor-browser-source/GHOSIUM-TOR-BROWSER-SOURCE.json" "$GITHUB_WORKSPACE/artifacts/engine/"
+      - name: Upload source-built engine
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: ghosium-tor-browser-engine-windows-x64-${{ needs.validate.outputs.version }}
+          path: artifacts/engine/
+          if-no-files-found: error
+          retention-days: 14
+          compression-level: 0
+
+  package-windows:
+    name: Package Ghosium Setup and Portable
+    needs: [validate, build-engine]
+    runs-on: windows-2025
+    timeout-minutes: 45
+    steps:
+      - name: Checkout exact Ghosium commit
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+      - name: Download source-built engine
+        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5
+        with:
+          name: ghosium-tor-browser-engine-windows-x64-${{ needs.validate.outputs.version }}
+          path: artifacts/engine
+      - name: Stage Firefox runtime and Ghosium launcher
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $stage = Join-Path $PWD 'artifacts/stage'
+          $runtime = Join-Path $stage 'runtime'
+          New-Item -ItemType Directory -Force -Path $runtime | Out-Null
+          $package = Get-ChildItem 'artifacts/engine' -File -Filter '*.zip' | Select-Object -First 1
+          if (!$package) { throw 'Source-built Windows package is missing.' }
+          Expand-Archive -Path $package.FullName -DestinationPath 'artifacts/unpacked' -Force
+          $firefox = Get-ChildItem 'artifacts/unpacked' -Filter 'firefox.exe' -File -Recurse | Select-Object -First 1
+          if (!$firefox) { throw 'Source-built package does not contain firefox.exe.' }
+          Copy-Item (Join-Path $firefox.Directory.FullName '*') $runtime -Recurse -Force
+          Copy-Item LICENSE,THIRD_PARTY_NOTICES.md,PRIVACY.md,SECURITY.md $stage -Force
+          ./compat-preview/vendor/build-native-launcher.ps1 -Version '0.0.9' -OutputPath (Join-Path $stage 'Ghosium-Browser.exe')
+          if ($LASTEXITCODE -ne 0) { throw 'Ghosium launcher build failed.' }
+          foreach ($required in @((Join-Path $runtime 'firefox.exe'), (Join-Path $stage 'Ghosium-Browser.exe'))) {
+            if (!(Test-Path $required -PathType Leaf)) { throw "Missing staged runtime input: $required" }
+          }
+      - name: Build Setup and Portable
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          New-Item -ItemType Directory -Force -Path 'artifacts/public' | Out-Null
+          $resolved = @(& ./scripts/resolve-nsis.ps1)
+          $makensis = [string]($resolved | Select-Object -Last 1)
+          if (!(Test-Path $makensis -PathType Leaf)) { throw 'Verified NSIS compiler is unavailable.' }
+          $stage = (Resolve-Path 'artifacts/stage').Path
+          $public = (Resolve-Path 'artifacts/public').Path
+          $icon = (Resolve-Path 'ghosium.ico').Path
+          foreach ($script in @('installer/ghosium.nsi','installer/ghosium-portable.nsi')) {
+            & $makensis '/DGHOSIUM_VERSION=0.0.9' "/DGHOSIUM_STAGE=$stage" "/DGHOSIUM_ARTIFACTS=$public" "/DGHOSIUM_ICON=$icon" (Resolve-Path $script).Path
+            if ($LASTEXITCODE -ne 0) { throw "NSIS build failed: $script" }
+          }
+      - name: Verify and record candidate
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $setup = Get-Item 'artifacts/public/Ghosium-Browser-Setup.exe'
+          $portable = Get-Item 'artifacts/public/Ghosium-Browser-Portable.exe'
+          $engine = Get-Item 'artifacts/stage/runtime/firefox.exe'
+          $evidence = [ordered]@{
+            schemaVersion = 1
+            product = 'Ghosium Browser'
+            platform = 'windows-x86_64'
+            version = '0.0.9'
+            engine = 'Tor Browser / Firefox ESR'
+            torBrowserVersion = '15.0.24'
+            firefoxVersion = '140.17.0esr'
+            torVersion = '0.4.9.13'
+            chromiumFallbackAllowed = $false
+            releaseReady = $false
+            releaseBlocker = 'Ghosium source-level branding/privacy overlay and canonical runtime/signing provenance are not complete.'
+            sourceCommit = $env:GITHUB_SHA
+            engineSha256 = (Get-FileHash $engine.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+            setupSha256 = (Get-FileHash $setup.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+            portableSha256 = (Get-FileHash $portable.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+          }
+          [IO.File]::WriteAllText('artifacts/public/GHOSIUM-TOR-BROWSER-WINDOWS.json', (($evidence | ConvertTo-Json -Depth 8) + [Environment]::NewLine), [Text.UTF8Encoding]::new($false))
+          $files = @('artifacts/public/Ghosium-Browser-Setup.exe','artifacts/public/Ghosium-Browser-Portable.exe','artifacts/public/GHOSIUM-TOR-BROWSER-WINDOWS.json')
+          $lines = foreach ($file in $files) { $item = Get-Item $file; "$((Get-FileHash $item.FullName -Algorithm SHA256).Hash.ToLowerInvariant())  $($item.Name)" }
+          $lines | Set-Content 'artifacts/public/SHA256SUMS.txt' -Encoding ascii
+      - name: Upload verified Windows candidate
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: ghosium-tor-browser-windows-x64-${{ needs.validate.outputs.version }}
+          path: artifacts/public/
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 0

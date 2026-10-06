@@ -17,7 +17,7 @@ namespace {
 constexpr wchar_t kProductName[] = L"Ghosium Browser";
 constexpr wchar_t kCompanyDirectory[] = L"Brendigo";
 constexpr wchar_t kProfileDirectory[] = L"Ghosium";
-constexpr wchar_t kEngineExecutable[] = L"Ghosium-Engine.exe";
+constexpr wchar_t kEngineExecutable[] = L"firefox.exe";
 constexpr wchar_t kSelfTestSwitch[] = L"--ghosium-self-test";
 constexpr wchar_t kWaitSwitch[] = L"--ghosium-wait";
 constexpr wchar_t kPortableProfilePrefix[] = L"--ghosium-portable-profile=";
@@ -84,7 +84,7 @@ fs::path LocalProfileDirectory() {
   if (FAILED(result) || buffer[0] == L'\0') {
     return {};
   }
-  return fs::path(buffer) / kCompanyDirectory / kProfileDirectory / L"User Data";
+  return fs::path(buffer) / kCompanyDirectory / kProfileDirectory / L"Profile";
 }
 
 fs::path NormalizeProfilePath(const fs::path& value) {
@@ -158,10 +158,8 @@ void ReportError(const std::wstring& message, bool noninteractive) {
 bool CoreFilesExist(const fs::path& root) {
   std::error_code error;
   return fs::is_regular_file(root / L"runtime" / kEngineExecutable, error) &&
-         fs::is_regular_file(root / L"extension" / L"manifest.json", error) &&
-         fs::is_regular_file(root / L"extension" / L"rules.json", error) &&
-         fs::is_regular_file(root / L"extension" / L"newtab.html", error) &&
-         fs::is_regular_file(root / L"extension" / L"newtab.css", error);
+         fs::is_regular_file(root / L"LICENSE", error) &&
+         fs::is_regular_file(root / L"THIRD_PARTY_NOTICES.md", error);
 }
 
 bool IsInternalSwitch(const std::wstring& argument) {
@@ -175,8 +173,8 @@ bool IsProtectedArgument(const std::wstring& argument, bool* consumes_next) {
   *consumes_next = false;
   const std::wstring lowered = ToLower(argument);
   const std::vector<std::wstring> valued = {
-      L"--user-data-dir", L"--load-extension", L"--disable-extensions-except",
-      L"--remote-debugging-port", L"--lang"};
+      L"-profile", L"--profile", L"-p", L"--profilemanager",
+      L"-start-debugger-server", L"--start-debugger-server", L"-uilocale"};
 
   for (const auto& option : valued) {
     if (lowered == option) {
@@ -188,14 +186,14 @@ bool IsProtectedArgument(const std::wstring& argument, bool* consumes_next) {
     }
   }
 
-  return lowered == L"--enable-crash-reporter" ||
-         lowered == L"--enable-sync" ||
-         lowered == L"--disable-extensions" ||
-         lowered == L"--no-sandbox" ||
-         lowered == L"--disable-web-security" ||
-         lowered == L"--ignore-certificate-errors" ||
-         lowered == L"--allow-running-insecure-content" ||
-         lowered == L"--remote-debugging-pipe" || IsInternalSwitch(lowered);
+  return lowered == L"-profilemanager" ||
+         lowered == L"--profilemanager" ||
+         lowered == L"-marionette" ||
+         lowered == L"--marionette" ||
+         lowered == L"-jsconsole" ||
+         lowered == L"--jsconsole" ||
+         lowered == L"-devtools" ||
+         lowered == L"--devtools" || IsInternalSwitch(lowered);
 }
 
 bool IsValidHandle(HANDLE handle) {
@@ -275,7 +273,6 @@ int APIENTRY wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
 
   const fs::path runtime_directory = root / L"runtime";
   const fs::path engine_executable = runtime_directory / kEngineExecutable;
-  const fs::path privacy_extension = root / L"extension";
 
   fs::path profile_directory = portable_profile.empty()
                                    ? LocalProfileDirectory()
@@ -304,16 +301,10 @@ int APIENTRY wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
 
   std::vector<std::wstring> arguments;
   arguments.emplace_back(engine_executable.wstring());
-  arguments.emplace_back(L"--user-data-dir=" + profile_directory.wstring());
-  arguments.emplace_back(L"--load-extension=" + privacy_extension.wstring());
-  arguments.emplace_back(L"--lang=" + locale);
-  arguments.emplace_back(L"--disable-sync");
-  arguments.emplace_back(L"--disable-breakpad");
-  arguments.emplace_back(L"--disable-background-mode");
-  arguments.emplace_back(L"--disable-domain-reliability");
-  arguments.emplace_back(L"--no-pings");
-  arguments.emplace_back(L"--no-first-run");
-  arguments.emplace_back(L"--no-default-browser-check");
+  arguments.emplace_back(L"-profile");
+  arguments.emplace_back(profile_directory.wstring());
+  arguments.emplace_back(L"-UILocale");
+  arguments.emplace_back(locale);
 
   for (int index = 1; index < argc; ++index) {
     bool consumes_next = false;

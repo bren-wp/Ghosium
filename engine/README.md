@@ -1,29 +1,34 @@
-# Ghosium source-engine integration
+# Ghosium Windows engine integration
 
-The active product baseline is **0.0.8**.
+The active product baseline is **0.0.9**.
 
-This directory contains Ghosium-owned source transforms, brand assets, localization, Windows identity and deterministic build configuration for the exact Chromium source revision in `ENGINE_SOURCE_REVISION`.
+## Engine direction
 
-## Product source contract
+Ghosium is migrating its Windows browser engine baseline to pinned **Tor Browser / Firefox ESR** source. The reviewed upstream contract is stored at:
 
-Ghosium owns the Windows product layer: Ghosium Browser/Brendigo identity, artwork, `Ghosium-Browser.exe`, `Ghosium-Proxy.exe`, `ghost://` / `ghost-untrusted://`, local profile surfaces, native New Tab branding, first-party product links, native update integration and supported locales.
+```text
+engine/tor-browser/windows-x64.json
+```
 
-Technical Chromium/GN symbols may remain where required by the build graph. Required third-party attribution is legal material and is not relabeled as Ghosium.
+The source verifier and bootstrap are:
 
-## 0.0.8 privacy, Tor and performance
+```text
+scripts/verify-tor-browser-upstream.ps1
+scripts/bootstrap-tor-browser-source.ps1
+```
 
-Windows source transforms preserve stronger defaults for third-party cookies, disable remote search suggestions, speculative network prediction/preloading and remote alternate-error pages, remove Google-owned browser account/background-service paths, and add the integrated fail-closed Tor route to the same Ghosium executable. Remote provider-owned New Tab promotion/Doodle paths covered by the source contract remain disabled.
+The contract pins the upstream Tor Browser release, Firefox ESR version, Tor version, source archive, official source URL and SHA-256. Chromium fallback is explicitly forbidden.
 
-Native Memory Saver and `enable_background_mode = false` remain part of the performance configuration. Security mechanisms are not disabled for benchmark results.
+## Ghosium product boundary
+
+Ghosium owns its Brendigo/Ghosium product identity, Windows launcher, Setup/Portable distribution, profile paths, first-party links, update integration and product UI customizations.
+
+Tor Browser, Firefox ESR, Tor and all other upstream components retain their required licenses, notices and trademark boundaries.
 
 ## Security invariants
 
-Browser/renderer/GPU sandboxing, site/process isolation, Safe Browsing, TLS/certificate validation, extension trust and update verification are mandatory.
+The migration must preserve browser sandboxing, process isolation, TLS/certificate validation, Tor routing protections and the upstream anti-fingerprinting model unless a reviewed Ghosium control provides equivalent or stronger protection.
 
-Native Windows update downloads use unique secure temporary session directories and enforce exact first-party endpoints, redirect rejection, byte-size/SHA-256 validation, Authenticode publisher validation and signed PE metadata checks before Setup launch.
+## Publication rule
 
-## Build configuration
-
-Windows x64 keeps deterministic release build settings including `is_debug = false`, `is_component_build = false`, `is_chrome_branded = false`, `target_cpu = "x64"`, `enable_background_mode = false` and `use_remoteexec = false`. Production builds do not inject proprietary Google API credentials.
-
-The canonical flow is documented in `../BUILDING.md`. Android is a separate client module under `../android/` and does not alter the pinned Windows source-engine revision.
+The previous Chromium source pipeline must not publish Ghosium 0.0.9. Canonical publication is blocked until the Windows builder is switched to the pinned Tor Browser / Firefox ESR source baseline and passes complete runtime, Setup/Portable, signing and provenance verification.
