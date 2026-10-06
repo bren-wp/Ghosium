@@ -1,10 +1,10 @@
 # Ghosium Windows engine integration
 
-The active public release baseline is **0.0.4**.
+The active public release baseline is **0.0.3**.
 
 ## Engine
 
-Ghosium 0.0.4 uses pinned **Tor Browser / Firefox ESR** source.
+Ghosium 0.0.3 uses pinned **Tor Browser / Firefox ESR** source.
 
 ```text
 engine/tor-browser/windows-x64.json
@@ -47,4 +47,4 @@ The build must preserve certificate validation, browser security boundaries, Tor
 
 ## Publication rule
 
-Canonical 0.0.4 publication is allowed only from the pinned Tor Browser / Firefox ESR Windows source build with the pinned Tor runtime, successful Setup/Portable tests, release evidence and production signing.
+Canonical 0.0.3 publication is allowed only from the pinned Tor Browser / Firefox ESR Windows source build with the pinned Tor runtime, successful Setup/Portable tests, release evidence and production signing.
