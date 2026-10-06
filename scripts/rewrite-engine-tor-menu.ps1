@@ -52,7 +52,9 @@ if (!$menuText.Contains($includeAnchor)) {
 }
 $menuText = $menuText.Replace(
   $includeAnchor,
-  $includeAnchor + [Environment]::NewLine + '#include "base/process/launch.h"'
+  $includeAnchor + [Environment]::NewLine +
+  '#include "base/process/launch.h"' + [Environment]::NewLine +
+  '#include "ui/base/ui_base_switches.h"'
 )
 
 $executeAnchor = @"
@@ -154,7 +156,8 @@ foreach ($token in @(
   'Ghosium native Tor menu entry',
   'tor_command.AppendSwitch("ghosium-tor")',
   'u"New Tor window"',
-  'base::LaunchProcess(tor_command, base::LaunchOptions())'
+  'base::LaunchProcess(tor_command, base::LaunchOptions())',
+  '#include "ui/base/ui_base_switches.h"'
 )) {
   if (!$idText.Contains($token) -and !$menuText.Contains($token)) {
     throw "Ghosium Tor-menu transform lost required token: $token"
