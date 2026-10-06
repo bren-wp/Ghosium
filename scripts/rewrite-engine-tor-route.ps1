@@ -112,11 +112,20 @@ bool ConfigureAndLaunchGhosiumTor(base::CommandLine* command_line) {
     return false;
   }
 
+  const base::FilePath tor_root =
+      executable_dir.Append(FILE_PATH_LITERAL("Tor"));
   const base::FilePath tor_executable =
-      executable_dir.Append(FILE_PATH_LITERAL("Tor"))
-          .Append(FILE_PATH_LITERAL("tor.exe"));
-  if (!base::PathExists(tor_executable)) {
-    LOG(ERROR) << "Ghosium Tor runtime is missing.";
+      tor_root.Append(FILE_PATH_LITERAL("tor.exe"));
+  const base::FilePath tor_geoip =
+      tor_root.Append(FILE_PATH_LITERAL("data"))
+          .Append(FILE_PATH_LITERAL("geoip"));
+  const base::FilePath tor_geoip6 =
+      tor_root.Append(FILE_PATH_LITERAL("data"))
+          .Append(FILE_PATH_LITERAL("geoip6"));
+  if (!base::PathExists(tor_executable) ||
+      !base::PathExists(tor_geoip) ||
+      !base::PathExists(tor_geoip6)) {
+    LOG(ERROR) << "Ghosium Tor runtime or GeoIP data is missing.";
     return false;
   }
 
@@ -170,6 +179,10 @@ bool ConfigureAndLaunchGhosiumTor(base::CommandLine* command_line) {
   tor_command.AppendArg("1");
   tor_command.AppendArg("--DataDirectory");
   tor_command.AppendArgPath(tor_data);
+  tor_command.AppendArg("--GeoIPFile");
+  tor_command.AppendArgPath(tor_geoip);
+  tor_command.AppendArg("--GeoIPv6File");
+  tor_command.AppendArgPath(tor_geoip6);
   tor_command.AppendArg("__OwningControllerProcess");
   tor_command.AppendArg(std::to_string(base::GetCurrentProcId()));
 
@@ -215,6 +228,10 @@ foreach ($required in @(
   'socks5://$socksEndpoint',
   'Tor User Data',
   'Tor Runtime Data',
+  'tor_geoip',
+  'tor_geoip6',
+  '--GeoIPFile',
+  '--GeoIPv6File',
   'host-resolver-rules',
   'direct_resolver_rules',
   'caller_rules',
