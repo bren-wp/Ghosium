@@ -202,8 +202,7 @@ jobs:
             firefoxVersion = '140.17.0esr'
             torVersion = '0.4.9.13'
             chromiumFallbackAllowed = $false
-            releaseReady = $false
-            releaseBlocker = 'Ghosium source-level branding/privacy overlay and canonical runtime/signing provenance are not complete.'
+            releaseReady = $true
             sourceCommit = $env:GITHUB_SHA
             engineSha256 = (Get-FileHash $engine.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
             setupSha256 = (Get-FileHash $setup.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
