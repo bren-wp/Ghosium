@@ -34,6 +34,9 @@ jobs:
               Path('.github/workflows/canonical-release-contract.yml'),
               Path('.github/workflows/native-privacy-contract.yml'),
               Path('.github/workflows/source-patch-contract.yml'),
+              Path('DEPOT_TOOLS_REVISION'),
+              Path('scripts/benchmark-browser-comparison-windows.ps1'),
+              Path('scripts/benchmark-ghosium-windows.ps1'),
           )
           found = [str(path) for path in retired if path.exists()]
           if found:
