@@ -1,0 +1,107 @@
+name: Ghosium 0.0.9 Windows Production Release
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '.release/ghosium-v0.0.9.request'
+
+concurrency:
+  group: ghosium-0.0.9-windows-production
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  dispatch-windows-production:
+    name: Run canonical signed Windows production build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 480
+    permissions:
+      actions: write
+      contents: read
+    outputs:
+      run_id: ${{ steps.windows.outputs.run_id }}
+    steps:
+      - name: Checkout exact release commit
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+
+      - name: Validate exact Windows-only 0.0.9 release request
+        shell: python
+        run: |
+          from pathlib import Path
+          version = Path('VERSION').read_text(encoding='utf-8').strip()
+          marker = Path('.release/ghosium-v0.0.9.request').read_text(encoding='utf-8').strip()
+          if version != '0.0.9' or marker != 'ghosium-v0.0.9':
+              raise SystemExit(f'Invalid production release request: version={version!r}, marker={marker!r}')
+          if Path('android').exists():
+              raise SystemExit('Windows-only production release must not contain Android source.')
+
+      - name: Dispatch and verify exact main full-source run
+        id: windows
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag='ghosium-v0.0.9'
+          if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "Release $tag already exists; immutable production orchestration refuses to overwrite it." >&2
+            exit 1
+          fi
+          started="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          gh workflow run full-source-windows-build.yml --ref main --repo "$GITHUB_REPOSITORY"
+          run_id=''
+          for attempt in $(seq 1 30); do
+            run_id="$(gh api "/repos/$GITHUB_REPOSITORY/actions/workflows/full-source-windows-build.yml/runs?branch=main&event=workflow_dispatch&per_page=30" \
+              --jq ".workflow_runs | map(select(.head_sha == \"$GITHUB_SHA\" and .created_at >= \"$started\")) | sort_by(.created_at) | last | .id // empty")"
+            if [ -n "$run_id" ]; then break; fi
+            sleep 5
+          done
+          if [ -z "$run_id" ]; then
+            echo 'Could not identify the exact dispatched Windows full-source run.' >&2
+            exit 1
+          fi
+          echo "run_id=$run_id" >> "$GITHUB_OUTPUT"
+          echo "Watching exact Windows production run $run_id for $GITHUB_SHA"
+          gh run watch "$run_id" --repo "$GITHUB_REPOSITORY" --exit-status
+
+  verify-release:
+    name: Verify complete Windows-only 0.0.9 release
+    needs: dispatch-windows-production
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - name: Verify immutable Windows release assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag='ghosium-v0.0.9'
+          release_json="$(gh api "/repos/$GITHUB_REPOSITORY/releases/tags/$tag")"
+          test "$(jq -r '.draft' <<<"$release_json")" = 'false'
+          test "$(jq -r '.prerelease' <<<"$release_json")" = 'false'
+          target="$(jq -r '.target_commitish' <<<"$release_json")"
+          if [ "$target" != "$GITHUB_SHA" ]; then
+            echo "Release target mismatch: expected $GITHUB_SHA, got $target" >&2
+            exit 1
+          fi
+          for required in Ghosium-Browser-Setup.exe Ghosium-Browser-Portable.exe GHOSIUM-SOURCE-BUILD.json GHOSIUM-PUBLIC-SETUP.json SHA256SUMS.txt; do
+            if ! jq -e --arg name "$required" '.assets | any(.name == $name)' <<<"$release_json" >/dev/null; then
+              echo "Final Windows release asset is missing: $required" >&2
+              exit 1
+            fi
+          done
+          if jq -e '.assets | any(.name | test("Android|\\.apk$"; "i"))' <<<"$release_json" >/dev/null; then
+            echo 'Windows-only Ghosium release unexpectedly contains an Android artifact.' >&2
+            exit 1
+          fi
+          echo 'Ghosium Browser 0.0.9 Windows release is complete: Setup and Portable verified.'
