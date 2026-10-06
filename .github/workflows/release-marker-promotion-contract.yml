@@ -113,7 +113,7 @@ jobs:
               'bootstrap-tor-browser-source.ps1',
               'Ghosium-Browser-Setup.exe',
               'Ghosium-Browser-Portable.exe',
-              'releaseReady = $false',
+              'releaseReady = $true',
           ):
               if required not in builder:
                   raise SystemExit(f'Tor Browser Windows builder invariant missing: {required}')

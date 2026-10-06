@@ -9,7 +9,7 @@ on:
       - 'scripts/resolve-nsis.ps1'
       - 'scripts/smoke-test-installer-contract-fixture.ps1'
       - '.github/workflows/tor-browser-windows-build.yml'
-      - '.github/workflows/ghosium-0.0.9-production-release.yml'
+      - '.github/workflows/ghosium-0.0.11-production-release.yml'
       - '.github/workflows/installer-contract.yml'
   push:
     branches: [main]
@@ -19,7 +19,7 @@ on:
       - 'scripts/resolve-nsis.ps1'
       - 'scripts/smoke-test-installer-contract-fixture.ps1'
       - '.github/workflows/tor-browser-windows-build.yml'
-      - '.github/workflows/ghosium-0.0.9-production-release.yml'
+      - '.github/workflows/ghosium-0.0.11-production-release.yml'
       - '.github/workflows/installer-contract.yml'
   workflow_dispatch:
 
@@ -93,7 +93,7 @@ jobs:
           from pathlib import Path
           portable = Path('installer/ghosium-portable.nsi').read_text(encoding='utf-8')
           launcher = Path('compat-preview/launcher/main.cpp').read_text(encoding='utf-8')
-          qa = Path('.github/workflows/ghosium-0.0.9-quality.yml').read_text(encoding='utf-8')
+          qa = Path('.github/workflows/ghosium-0.0.11-quality.yml').read_text(encoding='utf-8')
           for required in ('--ghosium-portable-profile','Ghosium-Portable-Data','PORTABLE_READY_MARKER'):
               if required not in portable:
                   raise SystemExit(f'Portable package contract missing: {required}')
@@ -108,7 +108,7 @@ jobs:
         run: |
           from pathlib import Path
           builder = Path('.github/workflows/tor-browser-windows-build.yml').read_text(encoding='utf-8')
-          production = Path('.github/workflows/ghosium-0.0.9-production-release.yml').read_text(encoding='utf-8')
+          production = Path('.github/workflows/ghosium-0.0.11-production-release.yml').read_text(encoding='utf-8')
           for required in ('firefox.exe','Ghosium-Browser-Setup.exe','Ghosium-Browser-Portable.exe','GHOSIUM-TOR-BROWSER-WINDOWS.json'):
               if required not in builder:
                   raise SystemExit(f'Candidate packaging missing: {required}')
