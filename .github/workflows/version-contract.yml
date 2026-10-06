@@ -187,7 +187,7 @@ jobs:
           if upstream.get('torVersion') != '0.4.9.13':
               raise SystemExit('Tor upstream version contract mismatch.')
           if upstream.get('chromiumFallbackAllowed') is not False:
-              raise SystemExit('Chromium fallback must remain forbidden for 0.0.9.')
+              raise SystemExit('Chromium fallback must remain forbidden for the active Windows-only release.')
 
       - name: Verify immutable action references
         shell: python
