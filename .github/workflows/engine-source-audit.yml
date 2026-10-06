@@ -10,6 +10,8 @@ on:
       - 'VERSION'
       - 'engine/**'
       - 'scripts/*engine*.ps1'
+      - 'scripts/stage-tor-runtime.ps1'
+      - 'scripts/verify-single-browser-privacy.ps1'
       - 'scripts/generate-engine-brand-assets.py'
       - '.github/workflows/engine-source-audit.yml'
       - '.github/workflows/full-source-windows-build.yml'
@@ -22,6 +24,8 @@ on:
       - 'VERSION'
       - 'engine/**'
       - 'scripts/*engine*.ps1'
+      - 'scripts/stage-tor-runtime.ps1'
+      - 'scripts/verify-single-browser-privacy.ps1'
       - 'scripts/generate-engine-brand-assets.py'
       - '.github/workflows/engine-source-audit.yml'
       - '.github/workflows/full-source-windows-build.yml'
@@ -86,7 +90,9 @@ jobs:
             'scripts/verify-engine-fork.ps1',
             'scripts/verify-engine-windows-executable.ps1',
             'scripts/configure-engine-build.ps1',
-            'scripts/verify-engine-build-output.ps1'
+            'scripts/verify-engine-build-output.ps1',
+            'scripts/stage-tor-runtime.ps1',
+            'scripts/verify-single-browser-privacy.ps1'
           )) {
             $tokens = $null
             $errors = $null
