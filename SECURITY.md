@@ -1,37 +1,21 @@
-# Ghosium Browser Security Policy
+# Ghosium Browser Security
 
-## Supported release
+## Windows security baseline
 
-Only the newest stable Ghosium Browser release is supported with security fixes.
+Ghosium 0.0.9 is Windows x64-only and uses Tor Browser 15.0.24 source, Firefox 140.17.0 ESR and Tor 0.4.9.13 as the reviewed engine baseline.
 
-## Windows 0.0.9 security baseline
+The upstream source contract is fail-closed: archive origin, version, platform and SHA-256 are pinned. Chromium fallback is forbidden for this release line.
 
-Ghosium 0.0.9 is Windows-only and is migrating its engine baseline to pinned Tor Browser / Firefox ESR source.
+## Privacy invariants
 
-The engine contract requires:
+The project must preserve Tor Browser's privacy and anonymity defenses as the baseline rather than treating Tor as only a SOCKS proxy.
 
-- official Tor Project source origin;
-- exact version and archive pinning;
-- SHA-256 verification before extraction;
-- no Chromium fallback;
-- preserved sandboxing and certificate validation;
-- preserved Tor Browser anti-fingerprinting and route-isolation protections unless a reviewed Ghosium change explicitly replaces them with an equivalent or stronger control.
+Do not weaken certificate validation, sandboxing, origin/process isolation, extension trust, update/package verification or Tor routing protections merely to make a build pass.
 
-Production publication requires successful source compilation, runtime smoke tests, canonical Setup + Portable provenance, install/update/uninstall validation, valid Authenticode signatures, update-manifest binding and SHA-256 evidence.
+Profile handling must use Ghosium-owned directories. Portable profile data must stay adjacent to the Portable executable and must not fall back to the installed profile.
 
-## Release completeness
+## Release security
 
-A Ghosium 0.0.9 release is complete only when the immutable release contains:
+Production Windows publication requires exact marker promotion, verified source build evidence, runtime smoke tests, Setup/Portable provenance, valid Authenticode signatures and SHA-256 manifests.
 
-```text
-Ghosium-Browser-Setup.exe
-Ghosium-Browser-Portable.exe
-```
-
-and all Windows signing/provenance gates have succeeded.
-
-## Reporting
-
-Use the repository private vulnerability reporting / Security Advisory flow when available. Reports should include the Ghosium version, Windows version, minimal reproduction steps, expected/observed behavior and whether the issue appears specific to Ghosium-owned code.
-
-Public security page: https://ghosium.com/security
+A failed source, runtime, signing or provenance gate blocks publication.
