@@ -8,6 +8,7 @@ on:
       - 'VERSION'
       - 'engine/**'
       - 'scripts/bootstrap-tor-browser-source.ps1'
+      - 'scripts/stage-tor-runtime.ps1'
       - 'scripts/verify-tor-browser-upstream.ps1'
       - 'scripts/rebrand-tor-browser-source.ps1'
       - 'scripts/verify-tor-browser-branding.ps1'
@@ -94,6 +95,10 @@ jobs:
               raise SystemExit('Tor Browser source origin is not the official Tor Project archive.')
 
           bootstrap = Path('scripts/bootstrap-tor-browser-source.ps1').read_text(encoding='utf-8')
+          builder = Path('.github/workflows/tor-browser-windows-build.yml').read_text(encoding='utf-8')
+          for token in ('export CFLAGS="-DNOMINMAX"', 'export CXXFLAGS="-DNOMINMAX"', './scripts/stage-tor-runtime.ps1', "Tor/tor.exe"):
+              if token not in builder:
+                  raise SystemExit(f'Tor Browser Windows builder hardening missing: {token}')
           for token in (
               'Get-FileHash $Path -Algorithm SHA256',
               'Downloaded Tor Browser source failed the pinned SHA-256 contract.',
