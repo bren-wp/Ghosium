@@ -37,4 +37,4 @@ Release title:
 Ghosium 0.0.3
 ```
 
-No upstream prebuilt browser package, unsigned public package, Android artifact or retired browser-engine fallback may be substituted for the canonical 0.0.3 Windows build.
+No upstream prebuilt browser package, unsigned public package, mobile artifact or retired browser-engine fallback may be substituted for the canonical 0.0.3 Windows build.
