@@ -1,0 +1,121 @@
+name: Ghosium Tor Browser Windows Build
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ghosium-tor-browser-windows-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  source-foundation:
+    name: Verify and prepare pinned Tor Browser Windows source
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - name: Checkout Ghosium
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+
+      - name: Verify Ghosium Windows engine contract
+        shell: pwsh
+        run: ./scripts/verify-tor-browser-upstream.ps1
+
+      - name: Install Tor Browser build prerequisites
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            git uidmap zstd jq zip xz-utils \
+            libdata-dump-perl libdata-uuid-perl libdatetime-perl \
+            libdigest-sha-perl libfile-copy-recursive-perl libfile-slurp-perl \
+            libio-all-perl libcapture-tiny-perl libio-handle-util-perl \
+            libjson-perl libparallel-forkmanager-perl libpath-tiny-perl \
+            libsort-versions-perl libstring-shellquote-perl libtemplate-perl \
+            libxml-libxml-perl libxml-writer-perl libyaml-libyaml-perl
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+          test -x /usr/bin/newuidmap
+          test -x /usr/bin/newgidmap
+
+      - name: Checkout exact official Tor Browser build system
+        shell: bash
+        run: |
+          set -euo pipefail
+          contract='engine/tor-browser/windows-x64.json'
+          repo_url="$(jq -r '.buildSystem.repository' "$contract")"
+          revision="$(jq -r '.buildSystem.commit' "$contract")"
+          target="$(jq -r '.buildSystem.target' "$contract")"
+          build_root="$RUNNER_TEMP/tor-browser-build"
+
+          git init "$build_root"
+          git -C "$build_root" remote add origin "$repo_url"
+          git -C "$build_root" fetch --depth=1 origin "$revision"
+          git -C "$build_root" checkout --detach FETCH_HEAD
+          test "$(git -C "$build_root" rev-parse HEAD)" = "$revision"
+
+          grep -F "firefox_platform_version: '140.17.0'" "$build_root/projects/firefox/config"
+          grep -F "browser_series: '15.0'" "$build_root/projects/firefox/config"
+          grep -F 'browser_build: 4' "$build_root/projects/firefox/config"
+          grep -F 'torbrowser-release-windows-x86_64:' "$build_root/Makefile"
+          grep -F "$target" "$build_root/Makefile"
+
+          echo "TOR_BROWSER_BUILD_ROOT=$build_root" >> "$GITHUB_ENV"
+
+      - name: Bootstrap exact Tor Browser Firefox ESR source archive
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $destination = Join-Path $env:RUNNER_TEMP 'ghosium-tor-browser-source'
+          ./scripts/bootstrap-tor-browser-source.ps1 -Destination $destination
+          $evidence = Join-Path $destination 'GHOSIUM-TOR-BROWSER-SOURCE.json'
+          if (!(Test-Path $evidence -PathType Leaf)) {
+            throw 'Tor Browser source provenance evidence was not produced.'
+          }
+          Get-Content $evidence -Raw
+
+      - name: Record engine-foundation evidence
+        shell: python
+        run: |
+          import json, os
+          from pathlib import Path
+
+          contract = json.loads(Path('engine/tor-browser/windows-x64.json').read_text(encoding='utf-8'))
+          evidence = {
+              'schemaVersion': 1,
+              'product': 'Ghosium Browser',
+              'platform': 'windows-x86_64',
+              'productVersion': Path('VERSION').read_text(encoding='utf-8').strip(),
+              'torBrowserVersion': contract['torBrowserVersion'],
+              'firefoxVersion': contract['firefoxVersion'],
+              'torVersion': contract['torVersion'],
+              'buildSystemCommit': contract['buildSystem']['commit'],
+              'buildTarget': contract['buildSystem']['target'],
+              'sourceCommit': os.environ['GITHUB_SHA'],
+              'releaseReady': False,
+              'reason': 'Ghosium Tor Browser source overlay and canonical Setup/Portable packaging are not yet wired into this builder.',
+          }
+          Path('GHOSIUM-TOR-BROWSER-FOUNDATION.json').write_text(
+              json.dumps(evidence, indent=2) + '\n', encoding='utf-8'
+          )
+          print(json.dumps(evidence, indent=2))
+
+      - name: Upload Tor Browser engine foundation evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: ghosium-tor-browser-windows-x64-${{ github.ref_name }}
+          path: GHOSIUM-TOR-BROWSER-FOUNDATION.json
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Refuse production publication before Ghosium source overlay is complete
+        if: github.ref == 'refs/heads/main'
+        shell: bash
+        run: |
+          echo 'Ghosium 0.0.9 production is intentionally blocked until the Tor Browser source overlay, runtime verification, canonical Setup/Portable packaging and signing pipeline are complete.' >&2
+          exit 1
