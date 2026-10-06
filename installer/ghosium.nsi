@@ -444,7 +444,7 @@ install_payload:
   SetOverwrite on
   File /r "${GHOSIUM_STAGE}\*"
 
-  ; Preserve the selected Setup language without writing Chromium Local State.
+  ; Preserve the selected Setup language in the Ghosium-owned locale handoff file.
   ; The Firefox/Tor launcher reads this file and passes -UILocale while the
   ; actual browser profile remains isolated under Brendigo\Ghosium\Profile.
   StrCmp $GhosiumUpdateMode "1" language_ready
