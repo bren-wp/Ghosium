@@ -253,6 +253,39 @@ if ($LASTEXITCODE -ne 0) {
   throw 'Ghosium public-surface branding failed.'
 }
 
+# Make browser identity local-first: remove Google/GAIA browser sign-in, Sync,
+# account-management, cloud/profile promotion and Google AI entry points while
+# preserving ordinary website authentication and Ghosium local customization.
+$privacySurfaceTransforms = @(
+  'rewrite-engine-browser-signin.ps1',
+  'rewrite-engine-profile-picker-local-only.ps1',
+  'rewrite-engine-local-profile-surfaces.ps1',
+  'rewrite-engine-app-menu-account-surfaces.ps1',
+  'rewrite-engine-disable-unowned-promos.ps1',
+  'rewrite-engine-upstream-public-actions.ps1'
+)
+foreach ($privacyTransform in $privacySurfaceTransforms) {
+  & (Join-Path $PSScriptRoot $privacyTransform) -SourceRoot $sourceRootResolved
+  if ($LASTEXITCODE -ne 0) {
+    throw "Ghosium privacy surface transform failed: $privacyTransform"
+  }
+}
+
+$privacySurfaceVerifiers = @(
+  'verify-engine-browser-signin.ps1',
+  'verify-engine-profile-picker-local-only.ps1',
+  'verify-engine-local-profile-surfaces.ps1',
+  'verify-engine-app-menu-account-surfaces.ps1',
+  'verify-engine-disable-unowned-promos.ps1',
+  'verify-engine-upstream-public-actions.ps1'
+)
+foreach ($privacyVerifier in $privacySurfaceVerifiers) {
+  & (Join-Path $PSScriptRoot $privacyVerifier) -SourceRoot $sourceRootResolved
+  if ($LASTEXITCODE -ne 0) {
+    throw "Ghosium privacy surface verification failed: $privacyVerifier"
+  }
+}
+
 # Sweep every materialized first-party GRIT/XTB message body after the targeted
 # transforms. Only visible text segments are changed; XML tags/placeholders,
 # source identifiers, build targets and the explicit legal allowlist are kept.
