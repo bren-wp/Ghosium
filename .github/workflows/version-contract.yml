@@ -92,7 +92,7 @@ jobs:
                       '.github/workflows/version-contract.yml',
                   }
                   release_ci_hotfix = (
-                      head_ref == f'ghosium/{version}-release-orchestration-fix'
+                      head_ref.startswith(f'ghosium/{version}-release-') and head_ref.endswith('-fix')
                       and bool(changed)
                       and set(changed).issubset(release_ci_hotfix_files)
                   )
