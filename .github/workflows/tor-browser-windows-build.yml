@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - 'ghosium/0.0.3-*'
+      - 'ghosium/release/0.0.3'
     paths:
       - 'VERSION'
       - 'engine/tor-browser/**'
