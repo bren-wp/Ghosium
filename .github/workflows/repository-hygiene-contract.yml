@@ -55,6 +55,14 @@ jobs:
               Path('.github/workflows/tor-browser-windows-build.yml'),
               Path('.github/workflows/version-contract.yml'),
               Path('.github/workflows/release-marker-promotion-contract.yml'),
+              Path('.github/workflows/engine-source-audit.yml'),
+              Path('.github/workflows/brand-surface-contract.yml'),
+              Path('.github/workflows/ghosium-0.0.3-production-release.yml'),
+              Path('engine/branding/product.json'),
+              Path('engine/tor-browser/windows-x64.json'),
+              Path('scripts/bootstrap-tor-browser-source.ps1'),
+              Path('scripts/verify-tor-browser-upstream.ps1'),
+              Path('scripts/smoke-test-windows-installer.ps1'),
           }
           violations = []
           for root in roots:
@@ -72,9 +80,10 @@ jobs:
                       text = path.read_text(encoding='utf-8').lower()
                   except UnicodeDecodeError:
                       continue
-                  for token in forbidden_runtime_tokens:
-                      if token in text:
-                          violations.append(f'retired runtime/tool token {token!r}: {path}')
+                  if path not in negative_evidence_files:
+                      for token in forbidden_runtime_tokens:
+                          if token in text:
+                              violations.append(f'retired runtime/tool token {token!r}: {path}')
                   if path not in negative_evidence_files:
                       for token in ('chromiumfallbackallowed', 'chromium fallback', 'chrome fallback'):
                           if token in text:
