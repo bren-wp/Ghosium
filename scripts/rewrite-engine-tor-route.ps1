@@ -80,18 +80,29 @@ bool ConfigureAndLaunchGhosiumTor(base::CommandLine* command_line) {
 
   if (!command_line->HasSwitch(kGhosiumTorSwitch)) {
     // Direct Ghosium must never resolve an .onion hostname through the system
-    // resolver. A navigation throttle also blocks the visible navigation, but
-    // this resolver rule is defense in depth for every network request type.
+    // resolver. Keep any caller-provided resolver rules after Ghosium's
+    // fail-closed onion rule so they cannot override the privacy boundary.
+    std::string direct_resolver_rules = kGhosiumDirectResolverRules;
+    if (command_line->HasSwitch("host-resolver-rules")) {
+      const std::string caller_rules =
+          command_line->GetSwitchValueASCII("host-resolver-rules");
+      if (!caller_rules.empty()) {
+        direct_resolver_rules.append(" , ");
+        direct_resolver_rules.append(caller_rules);
+      }
+      command_line->RemoveSwitch("host-resolver-rules");
+    }
     command_line->AppendSwitchASCII("host-resolver-rules",
-                                    kGhosiumDirectResolverRules);
+                                    direct_resolver_rules);
     return true;
   }
 
   // A Tor-routed Ghosium instance is fail-closed. User-provided proxy/PAC
   // settings are rejected instead of being allowed to bypass the Tor route.
   if (command_line->HasSwitch("proxy-server") ||
-      command_line->HasSwitch("proxy-pac-url")) {
-    LOG(ERROR) << "Ghosium Tor route rejects external proxy overrides.";
+      command_line->HasSwitch("proxy-pac-url") ||
+      command_line->HasSwitch("host-resolver-rules")) {
+    LOG(ERROR) << "Ghosium Tor route rejects external proxy/DNS overrides.";
     return false;
   }
 
@@ -205,6 +216,9 @@ foreach ($required in @(
   'Tor User Data',
   'Tor Runtime Data',
   'host-resolver-rules',
+  'direct_resolver_rules',
+  'caller_rules',
+  'rejects external proxy/DNS overrides',
   'MAP *.onion ~NOTFOUND',
   'disable_non_proxied_udp',
   '__OwningControllerProcess',
