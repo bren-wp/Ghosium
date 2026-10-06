@@ -42,7 +42,7 @@ jobs:
           if Path('android').exists():
               raise SystemExit('Windows-only production release must not contain Android source.')
 
-      - name: Dispatch and verify exact main full-source run
+      - name: Dispatch and verify exact main Tor Browser Windows run
         id: windows
         env:
           GH_TOKEN: ${{ github.token }}
@@ -55,16 +55,16 @@ jobs:
             exit 1
           fi
           started="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-          gh workflow run full-source-windows-build.yml --ref main --repo "$GITHUB_REPOSITORY"
+          gh workflow run tor-browser-windows-build.yml --ref main --repo "$GITHUB_REPOSITORY"
           run_id=''
           for attempt in $(seq 1 30); do
-            run_id="$(gh api "/repos/$GITHUB_REPOSITORY/actions/workflows/full-source-windows-build.yml/runs?branch=main&event=workflow_dispatch&per_page=30" \
+            run_id="$(gh api "/repos/$GITHUB_REPOSITORY/actions/workflows/tor-browser-windows-build.yml/runs?branch=main&event=workflow_dispatch&per_page=30" \
               --jq ".workflow_runs | map(select(.head_sha == \"$GITHUB_SHA\" and .created_at >= \"$started\")) | sort_by(.created_at) | last | .id // empty")"
             if [ -n "$run_id" ]; then break; fi
             sleep 5
           done
           if [ -z "$run_id" ]; then
-            echo 'Could not identify the exact dispatched Windows full-source run.' >&2
+            echo 'Could not identify the exact dispatched Tor Browser Windows run.' >&2
             exit 1
           fi
           echo "run_id=$run_id" >> "$GITHUB_OUTPUT"
