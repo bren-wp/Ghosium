@@ -57,9 +57,16 @@ constexpr char kGhosiumTorSwitch[] = "ghosium-tor";
 constexpr char kGhosiumTorProxy[] = "socks5://$socksEndpoint";
 constexpr char kGhosiumTorResolverRules[] =
     "MAP * ~NOTFOUND , EXCLUDE 127.0.0.1";
+constexpr char kGhosiumDirectResolverRules[] =
+    "MAP *.onion ~NOTFOUND";
 
 bool ConfigureAndLaunchGhosiumTor(base::CommandLine* command_line) {
   if (!command_line->HasSwitch(kGhosiumTorSwitch)) {
+    // Direct Ghosium must never resolve an .onion hostname through the system
+    // resolver. A navigation throttle also blocks the visible navigation, but
+    // this resolver rule is defense in depth for every network request type.
+    command_line->AppendSwitchASCII("host-resolver-rules",
+                                    kGhosiumDirectResolverRules);
     return true;
   }
 
@@ -174,6 +181,7 @@ foreach ($required in @(
   'Tor User Data',
   'Tor Runtime Data',
   'host-resolver-rules',
+  'MAP *.onion ~NOTFOUND',
   'disable_non_proxied_udp',
   '__OwningControllerProcess',
   'CHROME_RESULT_CODE_MISSING_DATA'
