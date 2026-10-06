@@ -1,53 +1,32 @@
-# Ghosium 0.0.9 Release Procedure
+# Ghosium 0.0.9 Windows Release Procedure
 
 The active product version is `0.0.9`.
 
-## Release state
-
-Ghosium Browser 0.0.9 is a **Windows-only release candidate** until the Tor Browser / Firefox ESR engine migration, exact-source build, runtime, signing, provenance and publication gates all succeed.
-
-The checked-in stable update baseline remains fail-closed before publication.
-
-## Required end-user assets
+Ghosium 0.0.9 is Windows-only. Required public assets are:
 
 ```text
 Ghosium-Browser-Setup.exe
 Ghosium-Browser-Portable.exe
 ```
 
-QA stubs, compatibility engines, unsigned candidate binaries and Chromium-built browser packages must not be renamed or promoted as the 0.0.9 production release.
+## Candidate
 
-## Phase 1 — engine baseline
+1. Merge the reviewed 0.0.9 Windows/Tor Browser foundation to `main`.
+2. Create `ghosium/release/0.0.9` from the exact approved `main` commit.
+3. Add exactly `.release/ghosium-v0.0.9.request` containing `ghosium-v0.0.9`.
+4. The release-request dispatcher runs the exact Tor Browser Windows candidate workflow.
+5. Candidate evidence must prove the pinned Tor Browser/Firefox ESR source identity and the resulting Ghosium Windows packages.
+6. Open a marker-only PR from `ghosium/release/0.0.9` to `main`.
+7. The marker-promotion contract refuses merge until the exact candidate evidence is successful.
 
-1. Verify `VERSION` and the Tor Browser upstream contract.
-2. Bootstrap the exact reviewed Tor Browser / Firefox ESR source with SHA-256 verification.
-3. Apply Ghosium branding/integration without replacing required upstream licenses or security controls.
-4. Compile the Windows x64 browser from that source.
-5. Verify runtime identity, Tor routing, normal web navigation, route isolation and anti-fingerprinting baseline.
-6. Produce canonical Setup and Portable packages and run lifecycle smoke tests.
+## Production
 
-## Phase 2 — exact candidate
+After the marker reaches `main`, the Windows production workflow dispatches the exact Tor Browser Windows build for that `main` SHA.
 
-1. Create `ghosium/release/0.0.9` from the exact approved `main` baseline.
-2. Add exactly `.release/ghosium-v0.0.9.request` containing `ghosium-v0.0.9`.
-3. Run the Windows candidate workflow against that exact release-branch SHA.
-4. Require source, runtime, Setup/Portable, provenance and SHA-256 evidence.
-5. Promote the marker only after exact candidate evidence is green.
+Production must require valid Authenticode signatures for the public Setup and Portable packages and must publish immutable provenance and SHA-256 evidence.
 
-## Phase 3 — production
+The final release tag is:
 
-The marker push to `main` triggers `.github/workflows/ghosium-0.0.9-production-release.yml`.
+`ghosium-v0.0.9`
 
-Production is fail-closed and must require:
-
-1. exact version + marker validation;
-2. exact Tor Browser / Firefox ESR source provenance;
-3. canonical signed Windows build;
-4. runtime and installer smoke tests;
-5. valid Authenticode Setup and Portable signatures;
-6. update-manifest binding;
-7. immutable GitHub release containing the required Windows assets.
-
-## Release decision
-
-Publication is forbidden while the production builder still depends on the Chromium engine path. The release may be published only after the canonical builder has been converted to the pinned Tor Browser / Firefox ESR baseline and all Windows release gates are green.
+No upstream prebuilt browser package, unsigned candidate or Chromium fallback may be substituted for the canonical 0.0.9 Windows build.
