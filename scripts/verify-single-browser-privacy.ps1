@@ -12,6 +12,8 @@ $searchRewritePath = Join-Path $repoRoot 'scripts/rewrite-engine-default-search.
 $stageTorPath = Join-Path $repoRoot 'scripts/stage-tor-runtime.ps1'
 $googleServicesPath = Join-Path $repoRoot 'scripts/rewrite-engine-disable-google-services.ps1'
 $architecturePath = Join-Path $repoRoot 'docs/SINGLE_BROWSER_PRIVACY.md'
+$applyPipelinePath = Join-Path $repoRoot 'scripts/apply-engine-branding.ps1'
+$upstreamActionsPath = Join-Path $repoRoot 'scripts/rewrite-engine-upstream-public-actions.ps1'
 
 foreach ($required in @(
   $productPath,
@@ -21,7 +23,9 @@ foreach ($required in @(
   $searchRewritePath,
   $stageTorPath,
   $googleServicesPath,
-  $architecturePath
+  $architecturePath,
+  $applyPipelinePath,
+  $upstreamActionsPath
 )) {
   if (!(Test-Path $required -PathType Leaf)) {
     throw "Single-browser privacy contract file is missing: $required"
@@ -135,6 +139,38 @@ foreach ($requiredToken in @(
   if (!$stageTor.Contains($requiredToken)) {
     throw "Ghosium Tor packaging lost verification token: $requiredToken"
   }
+}
+
+$applyPipeline = Get-Content $applyPipelinePath -Raw
+foreach ($requiredTransform in @(
+  'rewrite-engine-browser-signin.ps1',
+  'rewrite-engine-profile-picker-local-only.ps1',
+  'rewrite-engine-local-profile-surfaces.ps1',
+  'rewrite-engine-app-menu-account-surfaces.ps1',
+  'rewrite-engine-disable-unowned-promos.ps1',
+  'rewrite-engine-upstream-public-actions.ps1',
+  'rewrite-engine-disable-google-services.ps1',
+  'rewrite-engine-tor-route.ps1',
+  'rewrite-engine-onion-guard.ps1',
+  'rewrite-engine-tor-menu.ps1'
+)) {
+  if (!$applyPipeline.Contains($requiredTransform)) {
+    throw "Canonical Ghosium source pipeline lost privacy transform: $requiredTransform"
+  }
+}
+
+$upstreamActions = Get-Content $upstreamActionsPath -Raw
+foreach ($requiredAiSuppression in @(
+  'Google GEIC/Gemini side panel',
+  'Google Glic/Gemini side panel',
+  'Google AI overlay toolbar action'
+)) {
+  if (!$upstreamActions.Contains($requiredAiSuppression)) {
+    throw "Ghosium Google AI surface hardening is incomplete: $requiredAiSuppression"
+  }
+}
+if ($upstreamActions.Contains("-Description 'Customize Chromium side panel'")) {
+  throw 'Ghosium Customize must remain available while Google AI surfaces are suppressed.'
 }
 
 $architecture = Get-Content $architecturePath -Raw
