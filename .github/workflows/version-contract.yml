@@ -86,13 +86,26 @@ jobs:
                       and marker.is_file()
                       and marker.read_text(encoding='utf-8').strip() == tag
                   )
-                  if not marker_only:
+                  release_ci_hotfix_files = {
+                      '.github/workflows/release-marker-promotion-contract.yml',
+                      '.github/workflows/tor-browser-windows-build.yml',
+                      '.github/workflows/version-contract.yml',
+                  }
+                  release_ci_hotfix = (
+                      head_ref == f'ghosium/{version}-release-orchestration-fix'
+                      and bool(changed)
+                      and set(changed).issubset(release_ci_hotfix_files)
+                  )
+                  if not marker_only and not release_ci_hotfix:
                       raise SystemExit(
                           'Every merged production change requires the next public Ghosium VERSION; '
-                          'the only same-version exception is an exact preview.1 release-marker-only PR '
-                          'from ghosium/release/<VERSION>.'
+                          'same-version exceptions are limited to the exact preview.1 release-marker PR '
+                          'or a workflow-only release-orchestration hotfix.'
                       )
-                  print('candidate evidence is enforced by the release marker promotion contract')
+                  if release_ci_hotfix:
+                      print('workflow-only release orchestration hotfix: OK')
+                  else:
+                      print('candidate evidence is enforced by the release marker promotion contract')
               else:
                   current = tuple(map(int, version.split('.')))
                   if current != expected_public:
