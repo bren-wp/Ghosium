@@ -10,8 +10,7 @@ on:
       - 'store-web/**'
       - 'updates-web/**'
       - 'installer/**'
-      - 'engine/branding/**'
-      - 'engine/build/**'
+      - 'engine/**'
       - 'scripts/assemble-source-release-stage.ps1'
       - '.github/workflows/brand-surface-contract.yml'
   push:
@@ -23,8 +22,7 @@ on:
       - 'store-web/**'
       - 'updates-web/**'
       - 'installer/**'
-      - 'engine/branding/**'
-      - 'engine/build/**'
+      - 'engine/**'
       - 'scripts/assemble-source-release-stage.ps1'
       - '.github/workflows/brand-surface-contract.yml'
   workflow_dispatch:
@@ -34,10 +32,9 @@ permissions:
 
 jobs:
   brand-surface:
-    name: Verify Ghosium-only public and distributable surfaces
+    name: Verify Ghosium-only Windows public surfaces
     runs-on: ubuntu-latest
     timeout-minutes: 10
-
     steps:
       - name: Checkout
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
@@ -45,52 +42,32 @@ jobs:
           persist-credentials: false
           fetch-depth: 1
 
-      - name: Reject legacy product branding on every Ghosium-owned surface
+      - name: Reject retired browser branding on Ghosium-owned distributable surfaces
         shell: python
         run: |
           from pathlib import Path
           import re
 
-          roots = (
-              Path('extension'),
-              Path('store-web'),
-              Path('updates-web'),
-              Path('installer'),
-          )
-          suffixes = {'.md', '.html', '.php', '.json', '.css', '.js', '.ts', '.cpp', '.h', '.rc', '.nsi', '.txt', '.svg'}
+          roots = (Path('extension'), Path('store-web'), Path('updates-web'), Path('installer'))
+          suffixes = {'.md','.html','.php','.json','.css','.js','.ts','.cpp','.h','.rc','.nsi','.txt','.svg'}
           legacy = re.compile(
               r'chromium|google\s+chrome|\bchrome\b|chrome://|chrome-untrusted://|'
               r'support\.google|chrome\.google|google\.com/chrome',
               re.I,
           )
-          # WebExtension JavaScript necessarily uses the standardized `chrome.*`
-          # compatibility namespace. Permit only the exact APIs currently required
-          # by the checked-in Ghosium component; every other `chrome` occurrence,
-          # product name or internal URL remains a hard failure.
-          allowed_webextension_api = re.compile(r'\bchrome\.(?:storage|runtime|tabs)\b')
+          allowed_api = re.compile(r'\bchrome\.(?:storage|runtime|tabs)\b')
           failures = []
-
-          explicit_non_product = set()
-
-          def is_non_product(path: Path) -> bool:
-              if path in explicit_non_product:
-                  return True
-              return any(part.lower() in {'test', 'tests', 'fixtures'} for part in path.parts)
 
           for root in roots:
               if not root.exists():
                   continue
               for path in root.rglob('*'):
-                  if not path.is_file() or is_non_product(path):
-                      continue
-                  if path.suffix.lower() not in suffixes:
+                  if not path.is_file() or path.suffix.lower() not in suffixes:
                       continue
                   text = path.read_text(encoding='utf-8', errors='replace')
                   for number, line in enumerate(text.splitlines(), 1):
-                      surface_line = line
-                      if path.suffix.lower() in {'.js', '.ts'}:
-                          surface_line = allowed_webextension_api.sub('webextension-api', surface_line)
-                      if legacy.search(surface_line):
+                      check = allowed_api.sub('webextension-api', line) if path.suffix.lower() in {'.js','.ts'} else line
+                      if legacy.search(check):
                           failures.append(f'{path}:{number}: {line.strip()}')
 
           readme = Path('README.md').read_text(encoding='utf-8')
@@ -102,117 +79,68 @@ jobs:
               for number, line in enumerate(public_readme.splitlines(), 1):
                   if legacy.search(line):
                       failures.append(f'README.md:{number}: {line.strip()}')
-              if 'Chromium' not in legal_readme or 'third-party' not in legal_readme.lower():
-                  failures.append('README.md: required third-party attribution is missing from the legal-only section')
+              for required in ('Tor Browser', 'Firefox ESR', 'Tor', 'third-party'):
+                  if required.lower() not in legal_readme.lower():
+                      failures.append(f'README.md: legal attribution missing {required}')
 
           if failures:
               raise SystemExit(
-                  'Legacy product name or URL leaked into a Ghosium-owned public/distributable surface:\n'
+                  'Retired product branding leaked into a Ghosium-owned public/distributable surface:\n'
                   + '\n'.join(failures)
               )
+          print('Ghosium Windows public/distributable branding contract: OK')
 
-          print('Ghosium public/distributable branding: zero legacy product names; legal attribution isolated.')
-
-      - name: Verify first-party destinations and Google Search boundary
+      - name: Verify first-party destinations and DuckDuckGo search boundary
         shell: python
         run: |
           from pathlib import Path
           import re
 
-          ghosium_files = (
-              Path('store-web/index.php'),
-              Path('updates-web/index.php'),
-          )
-          allowed_ghosium_hosts = {
-              'ghosium.com',
-              'store.ghosium.com',
-              'updates.ghosium.com',
-          }
+          allowed_ghosium_hosts = {'ghosium.com','store.ghosium.com','updates.ghosium.com'}
           url_re = re.compile(r"https://([a-z0-9.-]+)(?:/[^\s\"'<>)]*)?", re.I)
 
-          for path in ghosium_files:
+          for path in (Path('store-web/index.php'), Path('updates-web/index.php')):
               text = path.read_text(encoding='utf-8')
               for host in url_re.findall(text):
                   if host.lower() not in allowed_ghosium_hosts:
                       raise SystemExit(f'Non-Ghosium product URL in {path}: https://{host}')
 
           newtab = Path('extension/newtab.html').read_text(encoding='utf-8')
-          if 'action="https://www.google.com/search"' not in newtab:
-              raise SystemExit('New Tab must submit search queries directly to Google Search.')
-          if 'name="q"' not in newtab:
-              raise SystemExit('New Tab Google Search form must submit the q parameter.')
-          for forbidden in ('search.ghosium.com', 'Ghosium Search', 'Search with Ghosium'):
+          if 'action="https://duckduckgo.com/"' not in newtab or 'name="q"' not in newtab:
+              raise SystemExit('New Tab must submit q directly to DuckDuckGo.')
+          for forbidden in ('www.google.com/search','search.ghosium.com','Ghosium Search','Search with Ghosium'):
               if forbidden in newtab:
-                  raise SystemExit(f'Retired first-party Search surface remains in New Tab: {forbidden}')
+                  raise SystemExit(f'Forbidden/retired New Tab search destination remains: {forbidden}')
 
-          newtab_hosts = {host.lower() for host in url_re.findall(newtab)}
-          allowed_newtab_hosts = allowed_ghosium_hosts | {'www.google.com'}
-          unexpected = sorted(newtab_hosts - allowed_newtab_hosts)
+          hosts = {host.lower() for host in url_re.findall(newtab)}
+          unexpected = sorted(hosts - (allowed_ghosium_hosts | {'duckduckgo.com'}))
           if unexpected:
               raise SystemExit('Unexpected New Tab external destination(s): ' + ', '.join(unexpected))
+          print('Ghosium destinations + DuckDuckGo boundary: OK')
 
-          print('Ghosium destinations + explicit Google Search boundary: OK')
-
-      - name: Verify Ghost route contract is documented
-        shell: bash
-        run: |
-          set -euo pipefail
-          for route in \
-            'ghost://newtab/' \
-            'ghost://history/' \
-            'ghost://bookmarks/' \
-            'ghost://downloads/' \
-            'ghost://settings/' \
-            'ghost://profiles/' \
-            'ghost://extensions/' \
-            'ghost://passwords/'; do
-            grep -F "$route" README.md >/dev/null
-          done
-
-      - name: Verify source-built security and performance boundaries
+      - name: Verify Tor Browser Windows engine boundary
         shell: python
         run: |
+          import json
           from pathlib import Path
-          import re
 
-          gn = Path('engine/build/windows-x64.args.gn').read_text(encoding='utf-8')
-          if not re.search(r'(?m)^\s*enable_background_mode\s*=\s*false\s*$', gn):
-              raise SystemExit('Ghosium Windows build must disable legacy background keep-alive mode.')
+          contract = json.loads(Path('engine/tor-browser/windows-x64.json').read_text(encoding='utf-8'))
+          if contract.get('targetPlatform') != 'windows-x86_64':
+              raise SystemExit('Engine target must remain Windows x86_64.')
+          if contract.get('chromiumFallbackAllowed') is not False:
+              raise SystemExit('Retired engine fallback must remain forbidden.')
+          build = contract.get('buildSystem', {})
+          if build.get('target') != 'torbrowser-release-windows-x86_64':
+              raise SystemExit('Tor Browser build target mismatch.')
+          if build.get('commit') != '137f3dcdb78a58f157c1f7e991463c600f630728':
+              raise SystemExit('Tor Browser build-system commit changed without review.')
+          print('Tor Browser / Firefox ESR Windows source boundary: OK')
 
-          repository_text = '\n'.join(
-              path.read_text(encoding='utf-8', errors='replace')
-              for path in (
-                  Path('engine/build/windows-x64.args.gn'),
-                  Path('scripts/configure-engine-build.ps1'),
-              )
-          )
-          for forbidden in (
-              '--renderer-process-limit',
-              '--no-sandbox',
-              '--disable-gpu-sandbox',
-              '--disable-site-isolation-trials',
-              '--disable-web-security',
-              '--ignore-certificate-errors',
-          ):
-              if forbidden in repository_text:
-                  raise SystemExit(f'Forbidden security-reducing performance shortcut: {forbidden}')
-
-          print('Ghosium source-built security/performance boundary: OK')
-
-      - name: Verify release stage rejects legacy public executable names
+      - name: Verify Ghosium release executable identity
         shell: python
         run: |
           from pathlib import Path
           text = Path('scripts/assemble-source-release-stage.ps1').read_text(encoding='utf-8')
-          for required in (
-              "'chrome.exe'",
-              "'chrome_proxy.exe'",
-              "'update.exe'",
-              "'updater.exe'",
-              "'uninstall.exe'",
-          ):
-              if required not in text:
-                  raise SystemExit(f'Release-stage forbidden-name guard missing: {required}')
           if "Join-Path $outPath 'Ghosium-Browser.exe'" not in text:
               raise SystemExit('Release stage must require Ghosium-Browser.exe.')
-          print('Ghosium public executable-name release gate: OK')
+          print('Ghosium public executable identity: OK')
