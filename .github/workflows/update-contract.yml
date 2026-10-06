@@ -9,7 +9,7 @@ on:
       - 'updates-web/**'
       - 'scripts/generate-update-manifest.ps1'
       - 'scripts/smoke-test-windows-installer.ps1'
-      - '.github/workflows/ghosium-0.0.11-production-release.yml'
+      - '.github/workflows/ghosium-0.0.3-production-release.yml'
       - '.github/workflows/update-contract.yml'
   push:
     branches: [main]
@@ -19,7 +19,7 @@ on:
       - 'updates-web/**'
       - 'scripts/generate-update-manifest.ps1'
       - 'scripts/smoke-test-windows-installer.ps1'
-      - '.github/workflows/ghosium-0.0.11-production-release.yml'
+      - '.github/workflows/ghosium-0.0.3-production-release.yml'
       - '.github/workflows/update-contract.yml'
   workflow_dispatch:
 
@@ -117,7 +117,7 @@ jobs:
         shell: python
         run: |
           from pathlib import Path
-          production = Path('.github/workflows/ghosium-0.0.11-production-release.yml').read_text(encoding='utf-8')
+          production = Path('.github/workflows/ghosium-0.0.3-production-release.yml').read_text(encoding='utf-8')
           for required in (
               'GHOSIUM_SIGN_CERT_THUMBPRINT',
               'GHOSIUM_TIMESTAMP_URL',
