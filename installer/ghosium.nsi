@@ -26,7 +26,6 @@ Unicode true
 !define UPDATE_DIR "$TEMP\Brendigo\Ghosium Browser Update"
 !define UPDATE_SETUP "$TEMP\Brendigo\Ghosium Browser Update\Ghosium-Browser-Setup.exe"
 !define UNINSTALL_KEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\GhosiumBrowser"
-!define USER_DATA_DIR "$LOCALAPPDATA\Brendigo\Ghosium\User Data"
 
 Var GhosiumUpdateMode
 Var GhosiumDeleteSelf
@@ -445,21 +444,12 @@ install_payload:
   SetOverwrite on
   File /r "${GHOSIUM_STAGE}\*"
 
-  ; Preserve the selected language during maintenance updates. A normal install
-  ; records the Setup selection and initializes the native browser's Local State
-  ; only when the user does not already have one, so reinstall/update never
-  ; overwrites a language later selected in Ghosium Settings.
+  ; Preserve the selected Setup language without writing Chromium Local State.
+  ; The Firefox/Tor launcher reads this file and passes -UILocale while the
+  ; actual browser profile remains isolated under Brendigo\Ghosium\Profile.
   StrCmp $GhosiumUpdateMode "1" language_ready
   FileOpen $0 "$INSTDIR\ghosium-language.txt" w
   FileWrite $0 "$(GhosiumLocale)$\r$\n"
-  FileClose $0
-
-  CreateDirectory "$LOCALAPPDATA\Brendigo"
-  CreateDirectory "$LOCALAPPDATA\Brendigo\Ghosium"
-  CreateDirectory "${USER_DATA_DIR}"
-  IfFileExists "${USER_DATA_DIR}\Local State" language_ready 0
-  FileOpen $0 "${USER_DATA_DIR}\Local State" w
-  FileWrite $0 '{$\"intl$\":{$\"app_locale$\":$\"$(GhosiumLocale)$\"}}$\r$\n'
   FileClose $0
 language_ready:
 
