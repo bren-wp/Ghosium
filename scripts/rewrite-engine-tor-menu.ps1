@@ -16,7 +16,8 @@ if ($LASTEXITCODE -ne 0 -or $actualRevision -ne $expectedRevision) {
 
 $commandIds = Join-Path $sourceRootResolved 'chrome/app/chrome_command_ids.h'
 $appMenu = Join-Path $sourceRootResolved 'chrome/browser/ui/toolbar/app_menu_model.cc'
-foreach ($required in @($commandIds, $appMenu)) {
+$chromiumStrings = Join-Path $sourceRootResolved 'chrome/app/chromium_strings.grd'
+foreach ($required in @($commandIds, $appMenu, $chromiumStrings)) {
   if (!(Test-Path $required -PathType Leaf)) {
     throw "Pinned Chromium Tor-menu source is missing: $required"
   }
@@ -24,17 +25,32 @@ foreach ($required in @($commandIds, $appMenu)) {
 
 $idText = [IO.File]::ReadAllText($commandIds)
 $menuText = [IO.File]::ReadAllText($appMenu)
+$stringsText = [IO.File]::ReadAllText($chromiumStrings)
 
 if ($idText.Contains('IDC_NEW_GHOSIUM_TOR_WINDOW') -and
-    $menuText.Contains('Ghosium native Tor menu entry')) {
+    $menuText.Contains('Ghosium native Tor menu entry') -and
+    $stringsText.Contains('IDS_NEW_GHOSIUM_TOR_WINDOW')) {
   Write-Host 'Ghosium native Tor menu entry already applied.'
   exit 0
 }
 
 if ($idText.Contains('IDC_NEW_GHOSIUM_TOR_WINDOW') -or
-    $menuText.Contains('Ghosium native Tor menu entry')) {
+    $menuText.Contains('Ghosium native Tor menu entry') -or
+    $stringsText.Contains('IDS_NEW_GHOSIUM_TOR_WINDOW')) {
   throw 'Partial Ghosium Tor-menu transform detected.'
 }
+
+$messagesClose = '</messages>'
+$messagesCloseIndex = $stringsText.LastIndexOf($messagesClose)
+if ($messagesCloseIndex -lt 0) {
+  throw 'Pinned Chromium branded strings messages anchor changed.'
+}
+$torString = @'
+    <message name="IDS_NEW_GHOSIUM_TOR_WINDOW" desc="Menu item that opens a new Ghosium window routed through the integrated Tor network">
+      New Tor window
+    </message>
+'@
+$stringsText = $stringsText.Insert($messagesCloseIndex, $torString + [Environment]::NewLine)
 
 $idAnchor = '#define IDC_CYCLE_TO_PREV_TAB           34063'
 if (!$idText.Contains($idAnchor) -or $idText.Contains('34064')) {
@@ -140,12 +156,10 @@ $buildReplacement = @"
         GetIndexOfCommandId(IDC_NEW_INCOGNITO_WINDOW).value(),
         kIncognitoMenuItem);
 
-    AddItemWithIcon(
-        IDC_NEW_GHOSIUM_TOR_WINDOW, u"New Tor window",
-        ui::ImageModel::FromVectorIcon(
-            features::IsRoundedIconsEnabled() ? kNewWindowIcon
-                                              : kNewWindowOldIcon,
-            ui::kColorMenuIcon, ui::SimpleMenuModel::kDefaultIconSize));
+    AddItemWithStringIdAndVectorIcon(
+        this, IDC_NEW_GHOSIUM_TOR_WINDOW, IDS_NEW_GHOSIUM_TOR_WINDOW,
+        features::IsRoundedIconsEnabled() ? kNewWindowIcon
+                                          : kNewWindowOldIcon);
 
     bool isolated_mode_enabled =
 "@
@@ -155,7 +169,7 @@ foreach ($token in @(
   'IDC_NEW_GHOSIUM_TOR_WINDOW       34064',
   'Ghosium native Tor menu entry',
   'tor_command.AppendSwitch("ghosium-tor")',
-  'u"New Tor window"',
+  'IDS_NEW_GHOSIUM_TOR_WINDOW',
   'base::LaunchProcess(tor_command, base::LaunchOptions())',
   '#include "ui/base/ui_base_switches.h"'
 )) {
@@ -166,6 +180,7 @@ foreach ($token in @(
 
 [IO.File]::WriteAllText($commandIds, $idText, [Text.UTF8Encoding]::new($false))
 [IO.File]::WriteAllText($appMenu, $menuText, [Text.UTF8Encoding]::new($false))
+[IO.File]::WriteAllText($chromiumStrings, $stringsText, [Text.UTF8Encoding]::new($false))
 
 $thirdPartyChanges = & git -C $sourceRootResolved status --porcelain=v1 -- third_party
 if ($LASTEXITCODE -ne 0) {
