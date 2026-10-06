@@ -59,7 +59,7 @@ jobs:
                       raise SystemExit(f'Windows-only product contract found stale {token!r} in {path}')
 
           launcher = Path('compat-preview/launcher/main.cpp').read_text(encoding='utf-8')
-          for token in ('SHGetFolderPathW', 'kCompanyDirectory[] = L"Brendigo"', 'kProfileDirectory[] = L"Ghosium"', '--ghosium-portable-profile=', 'firefox.exe', '-profile'):
+          for token in ('SHGetFolderPathW', 'kCompanyDirectory[] = L"Brendigo"', 'kProfileDirectory[] = L"Ghosium"', '--ghosium-portable-profile=', 'firefox.exe', 'Tor\\tor.exe', '-profile', 'network.proxy.socks_remote_dns', 'Browser startup was blocked to avoid a direct-network fallback'):
               if token not in launcher:
                   raise SystemExit(f'Windows launcher hardening token missing: {token}')
 
@@ -87,7 +87,7 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
-          New-Item -ItemType Directory -Force -Path 'launcher','qa-stage/runtime','qa-stage/extension','qa-artifacts' | Out-Null
+          New-Item -ItemType Directory -Force -Path 'launcher','qa-stage/runtime','qa-stage/runtime/Tor/data','qa-stage/extension','qa-artifacts' | Out-Null
           Copy-Item 'compat-preview/launcher/main.cpp','compat-preview/launcher/ghosium.rc' 'launcher' -Force
           Copy-Item 'LICENSE','THIRD_PARTY_NOTICES.md','PRIVACY.md','SECURITY.md' 'qa-stage' -Force
           foreach ($file in @('manifest.json','rules.json','newtab.html','newtab.css')) {
@@ -122,6 +122,49 @@ jobs:
           $compile = "call `"$devCmd`" -arch=x64 -host_arch=x64 && cl.exe /nologo /std:c++20 /O2 /W4 /EHsc /MT qa-engine.cpp /Fe:`"$enginePath`" /link /SUBSYSTEM:CONSOLE /DYNAMICBASE /NXCOMPAT"
           & cmd.exe /d /s /c $compile
           if ($LASTEXITCODE -ne 0 -or !(Test-Path $enginePath -PathType Leaf)) { throw 'Native deterministic test engine build failed.' }
+
+          @'
+          #define WIN32_LEAN_AND_MEAN
+          #define NOMINMAX
+          #include <winsock2.h>
+          #include <ws2tcpip.h>
+          #include <windows.h>
+          #include <string>
+          int wmain(int argc, wchar_t** argv) {
+            unsigned short port = 0;
+            for (int i = 1; i + 1 < argc; ++i) {
+              if (std::wstring(argv[i]) == L"--SocksPort") {
+                std::wstring endpoint = argv[i + 1];
+                const auto colon = endpoint.find_last_of(L':');
+                if (colon != std::wstring::npos) {
+                  port = static_cast<unsigned short>(std::stoi(endpoint.substr(colon + 1)));
+                }
+              }
+            }
+            if (port == 0) return 71;
+            WSADATA data{};
+            if (WSAStartup(MAKEWORD(2,2), &data) != 0) return 72;
+            SOCKET server = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+            if (server == INVALID_SOCKET) return 73;
+            sockaddr_in address{};
+            address.sin_family = AF_INET;
+            address.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+            address.sin_port = htons(port);
+            if (bind(server, reinterpret_cast<sockaddr*>(&address), sizeof(address)) == SOCKET_ERROR) return 74;
+            if (listen(server, SOMAXCONN) == SOCKET_ERROR) return 75;
+            Sleep(120000);
+            closesocket(server);
+            WSACleanup();
+            return 0;
+          }
+          '@ | Set-Content 'qa-tor.cpp' -Encoding utf8
+
+          $torPath = Join-Path (Resolve-Path 'qa-stage/runtime/Tor').Path 'tor.exe'
+          $torCompile = "call `"$devCmd`" -arch=x64 -host_arch=x64 && cl.exe /nologo /std:c++20 /O2 /W4 /EHsc /MT qa-tor.cpp /Fe:`"$torPath`" /link /SUBSYSTEM:CONSOLE /DYNAMICBASE /NXCOMPAT Ws2_32.lib"
+          & cmd.exe /d /s /c $torCompile
+          if ($LASTEXITCODE -ne 0 -or !(Test-Path $torPath -PathType Leaf)) { throw 'Deterministic fake Tor SOCKS fixture build failed.' }
+          Set-Content 'qa-stage/runtime/Tor/data/geoip' 'CI fixture only' -Encoding ascii
+          Set-Content 'qa-stage/runtime/Tor/data/geoip6' 'CI fixture only' -Encoding ascii
 
           $self = Start-Process -FilePath (Resolve-Path 'qa-stage/Ghosium-Browser.exe') -ArgumentList '--ghosium-self-test' -Wait -PassThru
           if ($self.ExitCode -ne 0) { throw "Launcher self-test failed: $($self.ExitCode)" }
