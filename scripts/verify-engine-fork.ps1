@@ -23,6 +23,7 @@ $productVersionRewritePath = Join-Path $repoRoot 'scripts/rewrite-engine-product
 $internalSchemeRewritePath = Join-Path $repoRoot 'scripts/rewrite-engine-internal-scheme.ps1'
 $publicSurfacesRewritePath = Join-Path $repoRoot 'scripts/rewrite-engine-public-surfaces.ps1'
 $performanceDefaultsRewritePath = Join-Path $repoRoot 'scripts/rewrite-engine-performance-defaults.ps1'
+$googleServicesRewritePath = Join-Path $repoRoot 'scripts/rewrite-engine-disable-google-services.ps1'
 $torRouteRewritePath = Join-Path $repoRoot 'scripts/rewrite-engine-tor-route.ps1'
 $torMenuRewritePath = Join-Path $repoRoot 'scripts/rewrite-engine-tor-menu.ps1'
 $torContractPath = Join-Path $repoRoot 'engine/tor/windows-x64.json'
@@ -44,6 +45,7 @@ foreach ($required in @(
   $internalSchemeRewritePath,
   $publicSurfacesRewritePath,
   $performanceDefaultsRewritePath,
+  $googleServicesRewritePath,
   $torRouteRewritePath,
   $torMenuRewritePath,
   $torContractPath
@@ -236,6 +238,15 @@ if ($SourceRoot) {
     'chrome/browser/resources/signin/managed_user_profile_notice/managed_user_profile_notice_value_prop.html.ts',
     'ui/webui/resources/images/chrome_logo_dark.svg',
     'components/search_engines/template_url_prepopulate_data.cc',
+    'components/gcm_driver/gcm_driver_desktop.cc',
+    'chrome/browser/domain_reliability/service_factory.cc',
+    'components/network_time/network_time_tracker.cc',
+    'components/variations/service/variations_service.cc',
+    'components/variations/net/variations_http_headers.cc',
+    'components/crash/core/app/crash_reporter_client.cc',
+    'chrome/browser/media/webrtc/webrtc_log_uploader.cc',
+    'chrome/browser/ui/browser_ui_prefs.cc',
+    'components/autofill/core/browser/crowdsourcing/autofill_crowdsourcing_manager.cc',
     'components/vector_icons/chromium/product.icon',
     'components/vector_icons/chromium/product_refresh.icon',
     'extensions/strings/extensions_chromium_strings.grdp'
@@ -365,6 +376,24 @@ if ($SourceRoot) {
   )) {
     if ($aboutHandler.Contains($forbiddenAlias)) {
       throw "Canonical ghost://profiles/passwords regressed to a browser_about_handler alias: $forbiddenAlias"
+    }
+  }
+
+  $googleServiceAssertions = @(
+    @('components/gcm_driver/gcm_driver_desktop.cc', 'Ghosium privacy: Google Cloud Messaging is not a browser dependency.'),
+    @('chrome/browser/domain_reliability/service_factory.cc', 'Ghosium privacy: never create the background Domain Reliability uploader.'),
+    @('components/network_time/network_time_tracker.cc', 'Ghosium privacy: never query a browser-owned remote network-time service.'),
+    @('components/variations/service/variations_service.cc', 'Ghosium privacy: no remote variations/field-trial seed fetching.'),
+    @('components/variations/net/variations_http_headers.cc', 'Ghosium privacy: never attach experiment identifiers to web requests.'),
+    @('components/crash/core/app/crash_reporter_client.cc', 'Ghosium privacy: crash data is never uploaded to an upstream endpoint.'),
+    @('chrome/browser/media/webrtc/webrtc_log_uploader.cc', 'Ghosium privacy: WebRTC diagnostic data stays off upstream upload paths.'),
+    @('chrome/browser/ui/browser_ui_prefs.cc', 'kWebRtcTextLogCollectionAllowed, false'),
+    @('components/autofill/core/browser/crowdsourcing/autofill_crowdsourcing_manager.cc', 'Ghosium privacy: do not query or upload form structure to Google Autofill.')
+  )
+  foreach ($assertion in $googleServiceAssertions) {
+    $googleServiceText = Get-Content (Join-Path $resolvedSourceRoot ([string]$assertion[0])) -Raw
+    if (!$googleServiceText.Contains([string]$assertion[1])) {
+      throw "Ghosium background Google-service hardening is missing: $($assertion[0]) / $($assertion[1])"
     }
   }
 
