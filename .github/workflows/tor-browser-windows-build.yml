@@ -10,6 +10,8 @@ on:
       - 'engine/tor-browser/**'
       - 'scripts/bootstrap-tor-browser-source.ps1'
       - 'scripts/verify-tor-browser-upstream.ps1'
+      - 'scripts/rebrand-tor-browser-source.ps1'
+      - 'scripts/verify-tor-browser-branding.ps1'
       - 'compat-preview/launcher/**'
       - 'installer/**'
       - '.github/workflows/tor-browser-windows-build.yml'
@@ -83,6 +85,15 @@ jobs:
           $root = @(Get-ChildItem $destination -Directory -Force)
           if ($root.Count -ne 1) { throw "Expected one source root, found $($root.Count)" }
           "root=$($root[0].FullName)" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+      - name: Apply and verify Ghosium source branding
+        shell: pwsh
+        env:
+          SOURCE_ROOT: ${{ steps.source.outputs.root }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          ./scripts/rebrand-tor-browser-source.ps1 -SourceRoot $env:SOURCE_ROOT
+          ./scripts/verify-tor-browser-branding.ps1 -SourceRoot $env:SOURCE_ROOT
+
       - name: Configure Windows x64 cross-build
         shell: bash
         env:
