@@ -54,6 +54,7 @@ $helper = @"
 // Ghosium integrated Tor route: one browser executable with an isolated
 // Tor-routed profile. Direct browsing remains the normal Ghosium path.
 constexpr char kGhosiumTorSwitch[] = "ghosium-tor";
+constexpr char kGhosiumPortableProfileSwitch[] = "ghosium-portable-profile";
 constexpr char kGhosiumTorProxy[] = "socks5://$socksEndpoint";
 constexpr char kGhosiumTorResolverRules[] =
     "MAP * ~NOTFOUND , EXCLUDE 127.0.0.1";
@@ -61,6 +62,22 @@ constexpr char kGhosiumDirectResolverRules[] =
     "MAP *.onion ~NOTFOUND";
 
 bool ConfigureAndLaunchGhosiumTor(base::CommandLine* command_line) {
+  // The public Portable wrapper passes a private profile handoff. Consume it
+  // before Chromium resolves the profile so Direct and Tor Portable sessions
+  // remain registry-free and adjacent to the Portable package.
+  const bool portable_profile_active =
+      command_line->HasSwitch(kGhosiumPortableProfileSwitch);
+  if (portable_profile_active) {
+    const base::FilePath portable_profile =
+        command_line->GetSwitchValuePath(kGhosiumPortableProfileSwitch);
+    if (portable_profile.empty() || !portable_profile.IsAbsolute()) {
+      LOG(ERROR) << "Ghosium Portable profile handoff is invalid.";
+      return false;
+    }
+    command_line->RemoveSwitch(switches::kUserDataDir);
+    command_line->AppendSwitchPath(switches::kUserDataDir, portable_profile);
+  }
+
   if (!command_line->HasSwitch(kGhosiumTorSwitch)) {
     // Direct Ghosium must never resolve an .onion hostname through the system
     // resolver. A navigation throttle also blocks the visible navigation, but
@@ -104,9 +121,13 @@ bool ConfigureAndLaunchGhosiumTor(base::CommandLine* command_line) {
   // Ghosium application and executable; only identity-bearing browser state is
   // isolated internally.
   const base::FilePath tor_profile =
-      base_profile.DirName().Append(FILE_PATH_LITERAL("Tor User Data"));
+      portable_profile_active
+          ? base_profile.Append(FILE_PATH_LITERAL("Tor User Data"))
+          : base_profile.DirName().Append(FILE_PATH_LITERAL("Tor User Data"));
   const base::FilePath tor_data =
-      base_profile.DirName().Append(FILE_PATH_LITERAL("Tor Runtime Data"));
+      portable_profile_active
+          ? base_profile.Append(FILE_PATH_LITERAL("Tor Runtime Data"))
+          : base_profile.DirName().Append(FILE_PATH_LITERAL("Tor Runtime Data"));
   if (!base::CreateDirectory(tor_profile) || !base::CreateDirectory(tor_data)) {
     LOG(ERROR) << "Ghosium Tor route could not prepare isolated local data.";
     return false;
@@ -177,6 +198,9 @@ $text = $text.Replace($browserAnchor, $activation)
 foreach ($required in @(
   $marker,
   'kGhosiumTorSwitch[] = "ghosium-tor"',
+  'kGhosiumPortableProfileSwitch[] = "ghosium-portable-profile"',
+  'portable_profile_active',
+  'portable_profile.IsAbsolute()',
   'socks5://$socksEndpoint',
   'Tor User Data',
   'Tor Runtime Data',
