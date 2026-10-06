@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Ghosium Privacy",
   "short_name": "Ghosium",
-  "version": "0.0.4",
+  "version": "0.0.3",
   "description": "Ghosium visual identity and New Tab source payload for the Tor Browser / Firefox ESR engine.",
   "permissions": [
     "declarativeNetRequest",
