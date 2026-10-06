@@ -12,5 +12,12 @@
   "sha256": "c217a69a1c929a81d5217247eb10dc5306176d94b2ab7918ddd9e4c5a28e169f",
   "targetPlatform": "windows-x86_64",
   "role": "future Ghosium engine source baseline",
-  "chromiumFallbackAllowed": false
+  "chromiumFallbackAllowed": false,
+  "buildSystem": {
+    "repository": "https://gitlab.torproject.org/tpo/applications/tor-browser-build.git",
+    "branch": "maint-15.0",
+    "commit": "137f3dcdb78a58f157c1f7e991463c600f630728",
+    "target": "torbrowser-release-windows-x86_64",
+    "auditMirror": "https://github.com/tor-actions/tor-browser-build"
+  }
 }
