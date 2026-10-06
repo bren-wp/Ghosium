@@ -2,6 +2,17 @@ name: Ghosium Tor Browser Windows Build
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - 'ghosium/0.0.9-*'
+    paths:
+      - 'VERSION'
+      - 'engine/tor-browser/**'
+      - 'scripts/bootstrap-tor-browser-source.ps1'
+      - 'scripts/verify-tor-browser-upstream.ps1'
+      - 'compat-preview/launcher/**'
+      - 'installer/**'
+      - '.github/workflows/tor-browser-windows-build.yml'
 
 permissions:
   contents: read
