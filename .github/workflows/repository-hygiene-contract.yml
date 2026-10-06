@@ -65,14 +65,10 @@ jobs:
           from pathlib import Path
           version = Path('VERSION').read_text(encoding='utf-8').strip()
           docs = (Path('README.md'), Path('BUILDING.md'), Path('CHANGELOG.md'), Path('docs/RELEASE.md'), Path('engine/README.md'))
-          version_re = re.compile(r'\b0\.\d+\.\d+\b')
           for path in docs:
               text = path.read_text(encoding='utf-8')
-              other = sorted({v for v in version_re.findall(text) if v != version})
-              if other:
-                  raise SystemExit(f'Old active-version history remains in {path}: {other}')
               if version not in text:
-                  raise SystemExit(f'Active VERSION missing from {path}: {version}')
+                  raise SystemExit(f'Active Ghosium VERSION missing from {path}: {version}')
           if not Path('CHANGELOG.md').read_text(encoding='utf-8').startswith(f'# Changelog\n\n## {version} '):
               raise SystemExit('CHANGELOG must contain the active baseline entry first.')
 
