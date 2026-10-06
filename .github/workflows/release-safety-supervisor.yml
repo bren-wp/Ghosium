@@ -15,11 +15,11 @@ concurrency:
 
 jobs:
   cancel-unpromoted-production-builds:
-    name: Cancel unpromoted main full-source runs
+    name: Cancel unpromoted main Tor Browser Windows runs
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - name: Cancel main full-source runs whose commit lacks its exact marker
+      - name: Cancel main Tor Browser Windows runs whose commit lacks its exact marker
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
@@ -36,7 +36,7 @@ jobs:
             version_json="$(gh api "/repos/$GITHUB_REPOSITORY/contents/VERSION?ref=$sha" 2>/dev/null || true)"
             version="$(jq -r '.content // empty' <<<"$version_json" | tr -d '\n' | base64 --decode 2>/dev/null | tr -d '\r\n ' || true)"
             if ! [[ "$version" =~ ^0\.[0-9]+\.[0-9]+$ ]]; then
-              echo "Cancelling full-source run $run_id: invalid VERSION at $sha"
+              echo "Cancelling Tor Browser Windows run $run_id: invalid VERSION at $sha"
               gh api --method POST "/repos/$GITHUB_REPOSITORY/actions/runs/$run_id/cancel" >/dev/null || true
               continue
             fi
@@ -47,9 +47,9 @@ jobs:
             marker="$(jq -r '.content // empty' <<<"$marker_json" | tr -d '\n' | base64 --decode 2>/dev/null | tr -d '\r\n ' || true)"
 
             if [ "$marker" != "$tag" ]; then
-              echo "Cancelling unpromoted full-source run $run_id at $sha (expected $marker_path = $tag)."
+              echo "Cancelling unpromoted Tor Browser Windows run $run_id at $sha (expected $marker_path = $tag)."
               gh api --method POST "/repos/$GITHUB_REPOSITORY/actions/runs/$run_id/cancel" >/dev/null || true
             else
-              echo "Keeping promoted full-source run $run_id at $sha."
+              echo "Keeping promoted Tor Browser Windows run $run_id at $sha."
             fi
           done
