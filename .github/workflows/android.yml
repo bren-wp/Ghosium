@@ -27,7 +27,7 @@ jobs:
           yes | "$SDKMANAGER" --licenses >/dev/null || true
           "$SDKMANAGER" "platforms;android-36" "build-tools;36.0.0"
       - name: Test and build
-        run: gradle --no-daemon :app:testDebugUnitTest :app:assembleDebug :app:bundleRelease
+        run: gradle --no-daemon :app:lintDebug :app:testDebugUnitTest :app:assembleDebug :app:bundleRelease
       - uses: actions/upload-artifact@v4
         if: success()
         with:
