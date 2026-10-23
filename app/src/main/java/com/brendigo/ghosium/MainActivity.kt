@@ -3,6 +3,7 @@ package com.brendigo.ghosium
 import android.app.Activity
 import androidx.activity.ComponentActivity
 import androidx.activity.OnBackPressedCallback
+import androidx.activity.result.contract.ActivityResultContracts
 import android.app.AlertDialog
 import android.app.DownloadManager
 import android.content.Context
@@ -82,6 +83,18 @@ class MainActivity : ComponentActivity() {
     private val screens by lazy { GhosiumScreens(this) }
     private var panel: String? = null
     private var fileSelection: ValueCallback<Array<Uri>>? = null
+    private val selectWebFiles = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        val data = result.data
+        val selectedFiles = if (result.resultCode == Activity.RESULT_OK) {
+            data?.clipData?.let { clip ->
+                Array(clip.itemCount) { i -> clip.getItemAt(i).uri }
+            } ?: data?.data?.let { arrayOf(it) }
+        } else null
+        fileSelection?.onReceiveValue(selectedFiles)
+        fileSelection = null
+    }
     private val settingsPrefs by lazy { getSharedPreferences("ghosium_settings", Context.MODE_PRIVATE) }
     private var selected = -1
 
@@ -347,7 +360,10 @@ class MainActivity : ComponentActivity() {
                 callback: ValueCallback<Array<Uri>>,
                 params: FileChooserParams
             ): Boolean {
-                fileSelection?.onReceiveValue(null)
+                if (fileSelection != null) {
+                    callback.onReceiveValue(null)
+                    return true
+                }
                 fileSelection = callback
                 val chooser = Intent(Intent.ACTION_GET_CONTENT).apply {
                     addCategory(Intent.CATEGORY_OPENABLE)
@@ -356,8 +372,7 @@ class MainActivity : ComponentActivity() {
                         params.mode == FileChooserParams.MODE_OPEN_MULTIPLE)
                 }
                 return try {
-                    @Suppress("DEPRECATION")
-                    startActivityForResult(Intent.createChooser(chooser, "Odaberi datoteku"), 2093)
+                    selectWebFiles.launch(Intent.createChooser(chooser, "Odaberi datoteku"))
                     true
                 } catch (_: Exception) {
                     fileSelection = null
@@ -690,20 +705,6 @@ class MainActivity : ComponentActivity() {
 
     override fun onPause() { active()?.web?.onPause(); super.onPause() }
     override fun onResume() { super.onResume(); if (panel == null && active()?.home == false) active()?.web?.onResume() }
-    @Deprecated("System file picker API")
-    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
-        super.onActivityResult(requestCode, resultCode, data)
-        if (requestCode == 2093) {
-            val selectedFiles = if (resultCode == Activity.RESULT_OK) {
-                data?.clipData?.let { clip ->
-                    Array(clip.itemCount) { i -> clip.getItemAt(i).uri }
-                } ?: data?.data?.let { arrayOf(it) }
-            } else null
-            fileSelection?.onReceiveValue(selectedFiles)
-            fileSelection = null
-        }
-    }
-
     override fun onDestroy() {
         fileSelection?.onReceiveValue(null)
         fileSelection = null
