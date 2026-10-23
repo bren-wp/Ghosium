@@ -57,7 +57,7 @@ class GhosiumSearchRepository {
             conn.readTimeout = 8000
             conn.instanceFollowRedirects = false
             conn.setRequestProperty("User-Agent",
-                "GhosiumBrowser/0.1.4 (Brendigo; https://brendigo.com)")
+                "GhosiumBrowser/0.1.5 (Brendigo; https://brendigo.com)")
             conn.setRequestProperty("Accept", "application/json")
             if (conn.responseCode != 200) throw java.io.IOException("HTTP " + conn.responseCode)
             if (conn.contentLengthLong > 750_000) throw java.io.IOException("Odgovor je prevelik")
