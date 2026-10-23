@@ -293,7 +293,12 @@ class MainActivity : ComponentActivity() {
         web.webViewClient = object : WebViewClient() {
             override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
                 if (!request.isForMainFrame) return false
-                return request.url.scheme?.lowercase() != "https"
+                if (request.url.scheme?.lowercase() != "https") {
+                    tab.navigationFailed = true
+                    showPageError(tab, "Ova poveznica ne koristi HTTPS i blokirana je.", retry = false)
+                    return true
+                }
+                return false
             }
 
             override fun onPageStarted(view: WebView, url: String?, favicon: android.graphics.Bitmap?) {
@@ -326,15 +331,15 @@ class MainActivity : ComponentActivity() {
 
             override fun onReceivedError(view: WebView, request: WebResourceRequest, error: WebResourceError) {
                 if (request.isForMainFrame) tab.navigationFailed = true
-                if (request.isForMainFrame && active() === tab && panel == null) {
-                    message("Stranica se nije uspjela učitati. Provjeri mrežu i adresu.")
+                if (request.isForMainFrame) {
+                    showPageError(tab, "Provjeri internetsku vezu ili adresu stranice.", retry = true)
                 }
             }
 
             override fun onReceivedSslError(view: WebView, handler: SslErrorHandler, error: SslError) {
                 tab.navigationFailed = true
                 handler.cancel()
-                if (active() === tab) message("SSL certifikat nije valjan")
+                showPageError(tab, "TLS certifikat web-stranice nije valjan. Veza je blokirana.", retry = false)
             }
 
             override fun onSafeBrowsingHit(
@@ -343,7 +348,7 @@ class MainActivity : ComponentActivity() {
             ) {
                 tab.navigationFailed = true
                 callback.backToSafety(true)
-                if (active() === tab) message("Opasna web-stranica je blokirana")
+                showPageError(tab, "Web-stranica je označena kao opasna i blokirana je.", retry = false)
             }
 
             override fun onRenderProcessGone(view: WebView, detail: RenderProcessGoneDetail): Boolean {
@@ -459,6 +464,17 @@ class MainActivity : ComponentActivity() {
         (view.parent as? ViewGroup)?.removeView(view)
         content.addView(view, FrameLayout.LayoutParams(-1, -1))
         progress.visibility = View.INVISIBLE
+    }
+
+    private fun showPageError(tab: Tab, message: String, retry: Boolean) {
+        if (active() !== tab || tab.home || panel != null || !tabs.contains(tab)) return
+        val retryAction: (() -> Unit)? = if (retry) ({
+            if (tabs.contains(tab)) {
+                showTab(tabs.indexOf(tab))
+                tab.web.reload()
+            }
+        }) else null
+        showPanel("error", screens.pageError(message, retryAction) { showHome() })
     }
 
     private fun showWelcome() = showPanel("welcome", screens.welcome {
