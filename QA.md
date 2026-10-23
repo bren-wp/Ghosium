@@ -23,3 +23,14 @@
 
 ## Limitations
 The UI is native; the webpage engine is Android System WebView. No isolated incognito profile or true custom search-result backend is implemented. Release without Ghosium upload credentials contains a debug APK and an unsigned AAB, clearly labelled as nonproduction.
+
+## v0.1.3 regression additions
+- [x] Pure JVM tests for accepted / rejected HTTPS URLs, unsuccessful page visit exclusion and unsafe download names.
+- [x] Pure JVM tests for tab close/reselection, beyond the URL resolver tests.
+- [ ] Android instrumentation: back from tabs/search/settings; verify no empty screen after activity recreation.
+- [ ] On-device copy, share and find-in-page against real websites.
+- [ ] Retain bookmarks while clearing history / cookies / WebStorage / cache.
+- [ ] DownloadManager with filenames containing separators and invalid characters.
+- [ ] Device screenshot comparisons with the requested 1:1 concepts at 320/360/412/600dp widths.
+- [ ] Render process death and file chooser cancellation/rotation regressions.
+- [ ] Independent security audit before declaring consumer production readiness.

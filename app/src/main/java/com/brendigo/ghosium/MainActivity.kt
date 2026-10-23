@@ -1,9 +1,14 @@
 package com.brendigo.ghosium
 
 import android.app.Activity
+import androidx.activity.ComponentActivity
+import androidx.activity.OnBackPressedCallback
+import androidx.activity.result.contract.ActivityResultContracts
 import android.app.AlertDialog
 import android.app.DownloadManager
 import android.content.Context
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.Intent
 import android.content.res.ColorStateList
 import android.graphics.Color
@@ -34,6 +39,8 @@ import android.webkit.WebStorage
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.EditText
+import android.text.Editable
+import android.text.TextWatcher
 import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.PopupMenu
@@ -47,7 +54,7 @@ import java.io.File
  * Renders websites using the installed Android System WebView.
  * This implementation DOES NOT claim isolated incognito or ad blocking.
  */
-class MainActivity : Activity() {
+class MainActivity : ComponentActivity() {
     private companion object {
         const val BG = 0xFF090D16.toInt()
         const val PANEL = 0xFF141C2A.toInt()
@@ -61,25 +68,44 @@ class MainActivity : Activity() {
         val web: WebView,
         var title: String = "Nova kartica",
         var url: String = "",
-        var home: Boolean = true
+        var home: Boolean = true,
+        var navigationFailed: Boolean = false
     )
 
     private lateinit var store: BrowserStore
     private lateinit var address: EditText
     private lateinit var content: FrameLayout
+    private lateinit var topBar: LinearLayout
     private lateinit var progress: ProgressBar
     private lateinit var tabButton: TextView
-    private lateinit var starButton: TextView
     private lateinit var menuButton: TextView
     private val tabs = mutableListOf<Tab>()
     private val screens by lazy { GhosiumScreens(this) }
     private var panel: String? = null
     private var fileSelection: ValueCallback<Array<Uri>>? = null
+    private val selectWebFiles = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        val data = result.data
+        val selectedFiles = if (result.resultCode == Activity.RESULT_OK) {
+            data?.clipData?.let { clip ->
+                Array(clip.itemCount) { i -> clip.getItemAt(i).uri }
+            } ?: data?.data?.let { arrayOf(it) }
+        } else null
+        fileSelection?.onReceiveValue(selectedFiles)
+        fileSelection = null
+    }
     private val settingsPrefs by lazy { getSharedPreferences("ghosium_settings", Context.MODE_PRIVATE) }
     private var selected = -1
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
+            override fun handleOnBackPressed() {
+                if (panel == null && active()?.home == true && tabs.size <= 1) finish()
+                else navigateBack()
+            }
+        })
         store = BrowserStore(this)
         CookieManager.getInstance().setAcceptCookie(settingsPrefs.getBoolean("cookies", true))
         buildUi()
@@ -165,6 +191,7 @@ class MainActivity : Activity() {
         })
         top.addView(action("↗", "Otvori adresu") { navigate(address.text.toString()) },
             LinearLayout.LayoutParams(dp(48), dp(50)))
+        topBar = top
         root.addView(top)
 
         progress = ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal).apply {
@@ -187,15 +214,14 @@ class MainActivity : Activity() {
                 marginEnd = dp(3)
             })
         }
-        add(action("‹", "Natrag") {
-            active()?.web?.let { if (it.canGoBack()) it.goBack() else showHome() }
+        add(action("‹", "Natrag") { navigateBack() })
+        add(action("›", "Naprijed") {
+            if (panel != null) showTab(selected)
+            active()?.let { tab -> if (!tab.home && tab.web.canGoForward()) tab.web.goForward() }
         })
-        add(action("›", "Naprijed") { active()?.web?.let { if (it.canGoForward()) it.goForward() } })
-        add(action("⟳", "Osvježi") { active()?.let { if (it.home) showHome() else it.web.reload() } })
-        starButton = action("☆", "Oznake") { toggleBookmark() }
-        add(starButton)
         tabButton = action("1", "Kartice") { showTabs() }
         add(tabButton)
+        add(action("⌂", "Početna") { showHome() })
         menuButton = action("⋮", "Izbornik") { showMenu() }
         add(menuButton)
         root.addView(bottom)
@@ -203,6 +229,18 @@ class MainActivity : Activity() {
     }
 
     private fun active(): Tab? = tabs.getOrNull(selected)
+
+    private fun navigateBack() {
+        if (panel != null) {
+            if (panel == "welcome") settingsPrefs.edit().putBoolean("introduced", true).apply()
+            showTab(selected)
+            return
+        }
+        val tab = active() ?: return
+        if (!tab.home && tab.web.canGoBack()) tab.web.goBack()
+        else if (!tab.home) showHome()
+        else if (tabs.size > 1) closeTab()
+    }
 
     private fun createTab() {
         if (tabs.size >= MAX_TABS) { message("Najviše osam kartica"); return }
@@ -242,11 +280,12 @@ class MainActivity : Activity() {
             }
 
             override fun onPageStarted(view: WebView, url: String?, favicon: android.graphics.Bitmap?) {
-                if (url?.startsWith("https://") == true) {
+                tab.navigationFailed = false
+                if (url?.startsWith("https://") == true && !tab.home) {
                     tab.url = url
                     tab.home = false
                 }
-                if (active() === tab) {
+                if (active() === tab && panel == null && !tab.home) {
                     address.setText(tab.url)
                     progress.progress = 5
                     progress.visibility = View.VISIBLE
@@ -254,13 +293,14 @@ class MainActivity : Activity() {
             }
 
             override fun onPageFinished(view: WebView, url: String?) {
-                if (url?.startsWith("https://") == true) {
+                if (!tabs.contains(tab)) return
+                if (url != null && BrowserPolicy.shouldRecordVisit(url, tab.home, tab.navigationFailed)) {
                     tab.url = url
                     tab.title = view.title?.take(150)?.ifBlank { Uri.parse(url).host ?: "Web-stranica" }
                         ?: (Uri.parse(url).host ?: "Web-stranica")
                     store.addHistory(tab.title, url)
                 }
-                if (active() === tab) {
+                if (active() === tab && panel == null && !tab.home) {
                     progress.visibility = View.INVISIBLE
                     address.setText(tab.url)
                     updateButtons()
@@ -268,12 +308,14 @@ class MainActivity : Activity() {
             }
 
             override fun onReceivedError(view: WebView, request: WebResourceRequest, error: WebResourceError) {
+                if (request.isForMainFrame) tab.navigationFailed = true
                 if (request.isForMainFrame && active() === tab && panel == null) {
                     message("Stranica se nije uspjela učitati. Provjeri mrežu i adresu.")
                 }
             }
 
             override fun onReceivedSslError(view: WebView, handler: SslErrorHandler, error: SslError) {
+                tab.navigationFailed = true
                 handler.cancel()
                 if (active() === tab) message("SSL certifikat nije valjan")
             }
@@ -282,6 +324,7 @@ class MainActivity : Activity() {
                 view: WebView, request: WebResourceRequest,
                 threatType: Int, callback: SafeBrowsingResponse
             ) {
+                tab.navigationFailed = true
                 callback.backToSafety(true)
                 if (active() === tab) message("Opasna web-stranica je blokirana")
             }
@@ -306,7 +349,7 @@ class MainActivity : Activity() {
         }
         web.webChromeClient = object : WebChromeClient() {
             override fun onProgressChanged(view: WebView, newProgress: Int) {
-                if (active() === tab && !tab.home) {
+                if (active() === tab && !tab.home && panel == null) {
                     progress.progress = newProgress
                     progress.visibility = if (newProgress == 100) View.INVISIBLE else View.VISIBLE
                 }
@@ -317,7 +360,10 @@ class MainActivity : Activity() {
                 callback: ValueCallback<Array<Uri>>,
                 params: FileChooserParams
             ): Boolean {
-                fileSelection?.onReceiveValue(null)
+                if (fileSelection != null) {
+                    callback.onReceiveValue(null)
+                    return true
+                }
                 fileSelection = callback
                 val chooser = Intent(Intent.ACTION_GET_CONTENT).apply {
                     addCategory(Intent.CATEGORY_OPENABLE)
@@ -326,8 +372,7 @@ class MainActivity : Activity() {
                         params.mode == FileChooserParams.MODE_OPEN_MULTIPLE)
                 }
                 return try {
-                    @Suppress("DEPRECATION")
-                    startActivityForResult(Intent.createChooser(chooser, "Odaberi datoteku"), 2093)
+                    selectWebFiles.launch(Intent.createChooser(chooser, "Odaberi datoteku"))
                     true
                 } catch (_: Exception) {
                     fileSelection = null
@@ -337,9 +382,9 @@ class MainActivity : Activity() {
             }
         }
         web.setDownloadListener(DownloadListener { url, userAgent, disposition, mime, _ ->
-            if (!url.startsWith("https://")) { message("Preuzimanje zahtijeva HTTPS"); return@DownloadListener }
+            if (!BrowserPolicy.isHttpsAddress(url)) { message("Preuzimanje zahtijeva valjani HTTPS URL"); return@DownloadListener }
             try {
-                val name = File(URLUtil.guessFileName(url, disposition, mime)).name.take(120)
+                val name = BrowserPolicy.safeFileName(File(URLUtil.guessFileName(url, disposition, mime)).name)
                 val request = DownloadManager.Request(Uri.parse(url)).apply {
                     setTitle(name)
                     setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, name)
@@ -361,6 +406,7 @@ class MainActivity : Activity() {
     private fun showTab(index: Int) {
         if (index !in tabs.indices) return
         panel = null
+        topBar.visibility = if (tabs[index].home) View.GONE else View.VISIBLE
         active()?.web?.onPause()
         selected = index
         val tab = tabs[index]
@@ -389,6 +435,7 @@ class MainActivity : Activity() {
 
     private fun showPanel(name: String, view: View) {
         panel = name
+        topBar.visibility = View.GONE
         active()?.web?.onPause()
         content.removeAllViews()
         (view.parent as? ViewGroup)?.removeView(view)
@@ -436,6 +483,7 @@ class MainActivity : Activity() {
 
     private fun showHome() {
         val tab = active() ?: return
+        tab.web.stopLoading()
         tab.home = true
         showTab(selected)
     }
@@ -458,16 +506,11 @@ class MainActivity : Activity() {
         address.clearFocus()
     }
 
-    private fun updateButtons() {
-        tabButton.text = tabs.size.toString()
-        val tab = active()
-        starButton.text = if (tab != null && !tab.home &&
-            store.bookmarks.any { it.url == tab.url }) "★" else "☆"
-    }
+    private fun updateButtons() { tabButton.text = tabs.size.toString() }
 
     private fun toggleBookmark() {
         val tab = active() ?: return
-        if (tab.home || tab.url.isBlank()) { message("Najprije otvori stranicu"); return }
+        if (tab.home || !BrowserPolicy.isHttpsAddress(tab.url)) { message("Najprije otvori HTTPS stranicu"); return }
         val saved = store.toggleBookmark(tab.title, tab.url)
         message(if (saved) "Dodano u oznake" else "Uklonjeno iz oznaka")
         updateButtons()
@@ -505,7 +548,9 @@ class MainActivity : Activity() {
     private fun showMenu() {
         val popup = PopupMenu(this, menuButton)
         listOf("Nova kartica", "Kartice", "Oznake", "Povijest", "Preuzimanja",
-            "Pretraživanje", "Postavke privatnosti", "Obriši podatke", "O Ghosiumu").forEachIndexed { idx, name ->
+            "Pretraživanje", "Dodaj ili ukloni oznaku", "Osvježi stranicu",
+            "Pronađi na stranici", "Kopiraj URL", "Podijeli poveznicu",
+            "Postavke privatnosti", "Obriši podatke", "O Ghosiumu").forEachIndexed { idx, name ->
             popup.menu.add(0, idx, idx, name)
         }
         popup.setOnMenuItemClickListener { item ->
@@ -516,16 +561,81 @@ class MainActivity : Activity() {
                 3 -> showItems("Povijest", store.history)
                 4 -> showDownloads()
                 5 -> showSearch()
-                6 -> showPrivacySettings()
-                7 -> clearData()
-                8 -> AlertDialog.Builder(this).setTitle("Ghosium Browser")
-                    .setMessage("Android 0.1.2 — Brendigo.\n" +
+                6 -> toggleBookmark()
+                7 -> active()?.let { if (!it.home && panel == null) it.web.reload() else message("Najprije otvori stranicu") }
+                8 -> findInPage()
+                9 -> copyPageUrl()
+                10 -> sharePageUrl()
+                11 -> showPrivacySettings()
+                12 -> clearData()
+                13 -> AlertDialog.Builder(this).setTitle("Ghosium Browser")
+                    .setMessage("Android 0.1.3 — Brendigo.\n" +
                         "Koristi Android System WebView. Nema anonimnog načina ni ugrađenog blokiranja oglasa.")
                     .setPositiveButton("U redu", null).show()
             }
             true
         }
         popup.show()
+    }
+
+    private fun currentHttps(): String? = active()?.takeIf { !it.home }
+        ?.url?.takeIf { BrowserPolicy.isHttpsAddress(it) }
+
+    private fun copyPageUrl() {
+        val url = currentHttps()
+        if (url == null) { message("Najprije otvori HTTPS stranicu"); return }
+        val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+        clipboard.setPrimaryClip(ClipData.newPlainText("Ghosium URL", url))
+        message("Poveznica je kopirana")
+    }
+
+    private fun sharePageUrl() {
+        val url = currentHttps()
+        if (url == null) { message("Najprije otvori HTTPS stranicu"); return }
+        val send = Intent(Intent.ACTION_SEND).apply {
+            type = "text/plain"
+            putExtra(Intent.EXTRA_TEXT, url)
+        }
+        try { startActivity(Intent.createChooser(send, "Podijeli poveznicu")) }
+        catch (_: Exception) { message("Dijeljenje nije dostupno") }
+    }
+
+    private fun findInPage() {
+        val tab = active()
+        if (tab == null || tab.home || panel != null) {
+            message("Najprije otvori web-stranicu")
+            return
+        }
+        val query = EditText(this).apply {
+            setSingleLine(true)
+            hint = "Pronađi tekst"
+            setTextColor(FG)
+            setHintTextColor(DIM)
+            inputType = android.text.InputType.TYPE_CLASS_TEXT
+            setPadding(dp(20), dp(12), dp(20), dp(12))
+        }
+        val dialog = AlertDialog.Builder(this)
+            .setTitle("Pronađi na stranici")
+            .setView(query)
+            .setPositiveButton("Sljedeće", null)
+            .setNegativeButton("Zatvori", null).create()
+        query.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
+                if (s.isNullOrEmpty()) tab.web.clearMatches()
+                else tab.web.findAllAsync(s.toString())
+            }
+            override fun afterTextChanged(s: Editable?) {}
+        })
+        dialog.setOnShowListener {
+            dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+                if (query.text.isNotBlank()) tab.web.findNext(true)
+            }
+        }
+        dialog.setOnDismissListener {
+            if (tabs.contains(tab)) tab.web.clearMatches()
+        }
+        dialog.show()
     }
 
     private fun showPrivacySettings() {
@@ -563,18 +673,24 @@ class MainActivity : Activity() {
 
     private fun clearData() {
         AlertDialog.Builder(this).setTitle("Obriši podatke pregledavanja?")
-            .setMessage("Brišu se povijest, oznake, kolačići i predmemorija. Preuzete datoteke ostaju spremljene.")
+            .setMessage("Brišu se povijest, kolačići i podaci web-stranica. Oznake i preuzete datoteke ostaju spremljene.")
             .setPositiveButton("Obriši") { _, _ ->
-                tabs.forEach {
+                // Detach tabs first: callbacks from closing WebViews must not restore cleared history.
+                val oldTabs = tabs.toList()
+                tabs.clear()
+                selected = -1
+                panel = null
+                fileSelection?.onReceiveValue(null)
+                fileSelection = null
+                content.removeAllViews()
+                oldTabs.forEach {
                     (it.web.parent as? ViewGroup)?.removeView(it.web)
+                    it.web.stopLoading()
                     it.web.clearCache(true)
                     it.web.clearHistory()
                     it.web.destroy()
                 }
-                tabs.clear()
-                selected = -1
-                content.removeAllViews()
-                store.clear()
+                store.clearHistory()
                 WebStorage.getInstance().deleteAllData()
                 CookieManager.getInstance().removeAllCookies {
                     CookieManager.getInstance().flush()
@@ -587,31 +703,8 @@ class MainActivity : Activity() {
 
     private fun message(value: String) = Toast.makeText(this, value, Toast.LENGTH_SHORT).show()
 
-    @Deprecated("Android navigation callback")
-    override fun onBackPressed() {
-        if (panel != null) { showTab(selected); return }
-        val tab = active()
-        if (tab != null && tab.web.canGoBack()) tab.web.goBack()
-        else if (tabs.size > 1) closeTab()
-        else super.onBackPressed()
-    }
-
     override fun onPause() { active()?.web?.onPause(); super.onPause() }
     override fun onResume() { super.onResume(); if (panel == null && active()?.home == false) active()?.web?.onResume() }
-    @Deprecated("System file picker API")
-    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
-        super.onActivityResult(requestCode, resultCode, data)
-        if (requestCode == 2093) {
-            val selectedFiles = if (resultCode == Activity.RESULT_OK) {
-                data?.clipData?.let { clip ->
-                    Array(clip.itemCount) { i -> clip.getItemAt(i).uri }
-                } ?: data?.data?.let { arrayOf(it) }
-            } else null
-            fileSelection?.onReceiveValue(selectedFiles)
-            fileSelection = null
-        }
-    }
-
     override fun onDestroy() {
         fileSelection?.onReceiveValue(null)
         fileSelection = null

@@ -11,8 +11,8 @@ android {
         applicationId = "com.brendigo.ghosium"
         minSdk = 29
         targetSdk = 36
-        versionCode = 3
-        versionName = "0.1.2"
+        versionCode = 4
+        versionName = "0.1.3"
     }
     signingConfigs {
         if (hasUploadSigning) {
@@ -38,4 +38,7 @@ android {
     }
     kotlinOptions { jvmTarget = "17" }
 }
-dependencies { testImplementation("junit:junit:4.13.2") }
+dependencies {
+    implementation("androidx.activity:activity:1.10.1")
+    testImplementation("junit:junit:4.13.2")
+}
