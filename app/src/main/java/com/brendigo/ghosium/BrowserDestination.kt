@@ -10,6 +10,7 @@ sealed class BrowserDestination {
     data object Invalid : BrowserDestination()
 
     companion object {
+        private val domainPort = Regex("^([a-z0-9-]+\\.)+[a-z0-9-]+:[0-9]{1,5}([/?#].*)?$", RegexOption.IGNORE_CASE)
         fun fromInput(raw: String): BrowserDestination {
             val value = raw.trim()
             if (value.isEmpty() || value.length > 2048 || value.any { it.isISOControl() })
@@ -17,7 +18,7 @@ sealed class BrowserDestination {
             val lower = value.lowercase(java.util.Locale.ROOT)
             // Explicit schemes are never reinterpreted as search text, even when invalid.
             if (lower.startsWith("http://") || lower.startsWith("//") ||
-                lower.matches(Regex("^[a-z][a-z0-9+.-]*:.*"))) {
+                (lower.matches(Regex("^[a-z][a-z0-9+.-]*:.*")) && !domainPort.matches(value))) {
                 if (!lower.startsWith("https://")) return Invalid
             }
             val looksLikeUrl = lower.startsWith("https://") ||
