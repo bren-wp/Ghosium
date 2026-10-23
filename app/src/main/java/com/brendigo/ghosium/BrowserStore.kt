@@ -46,5 +46,5 @@ class BrowserStore(context: Context) {
         history.removeAll { it.url == url }
         save("history", history)
     }
-    fun clear() { bookmarks.clear(); history.clear(); prefs.edit().clear().apply() }
+    fun clearHistory() { history.clear(); prefs.edit().remove("history").apply() }
 }
