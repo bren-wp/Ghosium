@@ -273,7 +273,7 @@ class MainActivity : Activity() {
 
             override fun onPageFinished(view: WebView, url: String?) {
                 if (!tabs.contains(tab)) return
-                if (!tab.navigationFailed && !tab.home && url?.startsWith("https://") == true) {
+                if (BrowserPolicy.shouldRecordVisit(url, tab.home, tab.navigationFailed)) {
                     tab.url = url
                     tab.title = view.title?.take(150)?.ifBlank { Uri.parse(url).host ?: "Web-stranica" }
                         ?: (Uri.parse(url).host ?: "Web-stranica")
@@ -359,9 +359,9 @@ class MainActivity : Activity() {
             }
         }
         web.setDownloadListener(DownloadListener { url, userAgent, disposition, mime, _ ->
-            if (UrlResolver.resolve(url) != url) { message("Preuzimanje zahtijeva valjani HTTPS URL"); return@DownloadListener }
+            if (!BrowserPolicy.isHttpsAddress(url)) { message("Preuzimanje zahtijeva valjani HTTPS URL"); return@DownloadListener }
             try {
-                val name = File(URLUtil.guessFileName(url, disposition, mime)).name.take(120).ifBlank { "ghosium-download" }
+                val name = BrowserPolicy.safeFileName(File(URLUtil.guessFileName(url, disposition, mime)).name)
                 val request = DownloadManager.Request(Uri.parse(url)).apply {
                     setTitle(name)
                     setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, name)
@@ -487,7 +487,7 @@ class MainActivity : Activity() {
 
     private fun toggleBookmark() {
         val tab = active() ?: return
-        if (tab.home || UrlResolver.resolve(tab.url) != tab.url) { message("Najprije otvori HTTPS stranicu"); return }
+        if (tab.home || !BrowserPolicy.isHttpsAddress(tab.url)) { message("Najprije otvori HTTPS stranicu"); return }
         val saved = store.toggleBookmark(tab.title, tab.url)
         message(if (saved) "Dodano u oznake" else "Uklonjeno iz oznaka")
         updateButtons()
@@ -556,7 +556,7 @@ class MainActivity : Activity() {
     }
 
     private fun currentHttps(): String? = active()?.takeIf { !it.home }
-        ?.url?.takeIf { UrlResolver.resolve(it) == it }
+        ?.url?.takeIf { BrowserPolicy.isHttpsAddress(it) }
 
     private fun copyPageUrl() {
         val url = currentHttps()
