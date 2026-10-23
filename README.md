@@ -61,3 +61,10 @@ Current prerelease remains **not Google-Play ready** without a correctly secured
 - With no configured own service, **only Wikipedia** results are available and are labelled as such. For broader web search a Brendigo-controlled HTTPS SearXNG backend must be deployed; see [Ghosium Search setup](docs/GHOSIUM_SEARCH.md). This is not a proprietary search index.
 - A working service URL is selected via repo variable `GHOSIUM_SEARCH_BASE_URL` during CI and release builds; no upstream secrets are stored in the app.
 - No promise of perfect 1:1 pixel parity or zero crashes without device screenshots and QA. APK remains debug and AAB unsigned until secured signing secrets exist.
+
+## Ghosium v0.1.5
+Ghosium Search now refreshes **result rows only**, preserving the editable native search field, its cursor and the screen's scroll position during network updates. Browser chrome uses one compact omnibox on web pages. Secondary screens no longer repeat a large decorative logo.
+
+Up to eight HTTPS browser tabs are safely restored across restarts; background tabs are loaded only when selected. Native Ghosium error screens replace opaque network/TLS errors. Explicit `example.com:8443` HTTPS inputs are accepted.
+
+The app still requires a genuinely Brendigo-hosted search service for broad web results. Until configured, only clearly attributed Wikipedia results are available. Device screenshot parity tests and upload signing remain prerequisites for production distribution.

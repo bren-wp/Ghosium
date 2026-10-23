@@ -59,7 +59,7 @@ class GhosiumScreens(private val host:Activity) {
         orientation=LinearLayout.VERTICAL
         setPadding(dp(18),dp(14),dp(18),dp(27))
     }
-    fun screen(page:String?=null,branding:Boolean=true,fill:(LinearLayout)->Unit):View{
+    fun screen(page:String?=null,branding:Boolean=page==null,fill:(LinearLayout)->Unit):View{
         val frame=FrameLayout(host).apply{background=AuroraDrawable()}
         val scroll=ScrollView(host).apply{isFillViewport=true;clipToPadding=false}
         val body=column()
@@ -131,50 +131,83 @@ class GhosiumScreens(private val host:Activity) {
         c.addView(quick,lp(8))
     }
 
-    /** Results and input are always Ghosium native UI; sources remain honestly attributed. */
-    fun searchResults(query:String,items:List<GhosiumResult>,isLoading:Boolean,
-                      error:String?,onSearch:(String)->Unit,onOpen:(String)->Unit):View =
-        screen("Ghosium Search",branding=false) { c ->
-            val badge=LinearLayout(host).apply{
-                orientation=LinearLayout.HORIZONTAL;gravity=Gravity.CENTER_VERTICAL
+    data class SearchView(
+        val root: View,
+        val update: (List<GhosiumResult>, Boolean, String?) -> Unit
+    )
+
+    /**
+     * Stable native search screen. Network updates change result rows only, leaving the
+     * typed query, keyboard focus, and scroll position intact.
+     */
+    fun searchResults(query:String,onSearch:(String)->Unit,onOpen:(String)->Unit,
+                      onRetry:()->Unit):SearchView {
+        val resultRows = LinearLayout(host).apply { orientation=LinearLayout.VERTICAL }
+        val view=screen(branding=false) { c ->
+            val brand=LinearLayout(host).apply{
+                orientation=LinearLayout.HORIZONTAL
+                gravity=Gravity.CENTER_VERTICAL
             }
-            badge.addView(GhosiumMark(host),LinearLayout.LayoutParams(dp(38),dp(38)).apply{
+            brand.addView(GhosiumMark(host),LinearLayout.LayoutParams(dp(36),dp(36)).apply{
                 marginEnd=dp(10)
             })
-            badge.addView(title("GHOSIUM",16f,white,true))
-            c.addView(badge,lp(10))
-            val field=input("Pretraži web",onSearch)
-            field.setText(query)
-            field.setSelection(field.text.length)
-            c.addView(field,lp(13))
-            val note=if(GhosiumSearchRepository.WEB_SEARCH_BASE_URL.isNotBlank())
-                "Ghosium Search · web rezultati" else
-                "Ghosium Search · Wikipedia (ograničeni rezultati)"
-            c.addView(title(note,12f,muted),lp(13))
-            if(isLoading) {
-                c.addView(title("Pretražujem…",15f,muted),lp())
-            } else if(error!=null) {
-                c.addView(title("Pretraga nije dostupna: "+error,14f,muted),lp())
-            } else if(items.isEmpty()) {
-                c.addView(title("Nema rezultata za ovaj pojam.",15f,muted),lp())
+            brand.addView(title("GHOSIUM Search",18f,white,true))
+            c.addView(brand,lp(12))
+            val search=input("Pretraži ili upiši adresu",onSearch)
+            search.setText(query)
+            search.setSelection(search.text.length)
+            c.addView(search,lp(10))
+            val label=if (GhosiumSearchRepository.WEB_SEARCH_BASE_URL.isNotBlank())
+                "Web rezultati · Ghosium pretraga" else
+                "Ograničeni rezultati · Hrvatska Wikipedija"
+            c.addView(title(label,12f,muted),lp(13))
+            c.addView(resultRows,lp(6))
+        }
+        val render:(List<GhosiumResult>,Boolean,String?)->Unit={items,loading,error->
+            resultRows.removeAllViews()
+            if (loading) {
+                resultRows.addView(title("Pretražujem…",15f,muted),lp(10))
+            } else if (error != null) {
+                resultRows.addView(title("Nije uspjelo učitavanje rezultata.",15f,muted),lp(10))
+                resultRows.addView(button("Pokušaj ponovno",onRetry),lp())
+            } else if (items.isEmpty()) {
+                resultRows.addView(title("Nema rezultata za ovaj upit.",15f,muted),lp())
             } else {
-                items.forEach { result ->
-                    val resultCard=LinearLayout(host).apply{
+                items.forEach { item ->
+                    val card=LinearLayout(host).apply {
                         orientation=LinearLayout.VERTICAL
-                        setPadding(dp(13),dp(12),dp(13),dp(12))
+                        setPadding(dp(14),dp(12),dp(14),dp(12))
                         background=card()
-                        minimumHeight=dp(73)
-                        setOnClickListener {onOpen(result.url)}
-                        contentDescription="Otvori "+result.title
+                        minimumHeight=dp(66)
+                        setOnClickListener {onOpen(item.url)}
+                        contentDescription="Otvori "+item.title
                     }
-                    resultCard.addView(title(result.title,16f,white,true).apply{maxLines=2})
-                    resultCard.addView(title(result.url,12f,mint).apply{maxLines=1})
-                    if(result.description.isNotBlank())resultCard.addView(
-                        title(result.description,13f,muted).apply{maxLines=2})
-                    resultCard.addView(title("Izvor: "+result.source,11f,muted))
-                    c.addView(resultCard,lp(8))
+                    card.addView(title(item.title,16f,white,true).apply{maxLines=2})
+                    card.addView(title(item.url,12f,mint).apply{maxLines=1})
+                    if(item.description.isNotBlank()) card.addView(
+                        title(item.description,13f,muted).apply{maxLines=2})
+                    card.addView(title("Izvor: "+item.source,11f,muted))
+                    resultRows.addView(card,lp(8))
                 }
             }
+        }
+        return SearchView(view,render)
+    }
+
+    /** Native error view avoids opaque Android System WebView error pages. */
+    fun pageError(message:String,onRetry:(()->Unit)?,onHome:()->Unit):View =
+        screen("Nije moguće otvoriti stranicu", branding=false) { c ->
+            val mark=GhosiumMark(host)
+            c.addView(mark,LinearLayout.LayoutParams(dp(72),dp(72)).apply{
+                gravity=Gravity.CENTER_HORIZONTAL
+                bottomMargin=dp(16)
+            })
+            c.addView(title(message,16f,white).apply{
+                gravity=Gravity.CENTER
+                textAlignment=View.TEXT_ALIGNMENT_CENTER
+            },lp(22))
+            if(onRetry!=null) c.addView(button("Pokušaj ponovno",onRetry),lp(12))
+            c.addView(row("Ghosium početna","Vrati se na početni zaslon","⌂",onHome),lp())
         }
 
     fun welcome(onContinue:()->Unit):View=screen { c ->
