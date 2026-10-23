@@ -72,6 +72,8 @@ class MainActivity : Activity() {
     private lateinit var starButton: TextView
     private lateinit var menuButton: TextView
     private val tabs = mutableListOf<Tab>()
+    private val screens by lazy { GhosiumScreens(this) }
+    private var panel: String? = null
     private val settingsPrefs by lazy { getSharedPreferences("ghosium_settings", Context.MODE_PRIVATE) }
     private var selected = -1
 
@@ -81,6 +83,14 @@ class MainActivity : Activity() {
         CookieManager.getInstance().setAcceptCookie(settingsPrefs.getBoolean("cookies", true))
         buildUi()
         createTab()
+        if (!settingsPrefs.getBoolean("introduced", false)) showWelcome()
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        outState.putStringArrayList("ghosium_urls", ArrayList(tabs.map { it.url }))
+        outState.putBooleanArray("ghosium_homes", tabs.map { it.home }.toBooleanArray())
+        outState.putInt("ghosium_selected", selected.coerceAtLeast(0))
+        super.onSaveInstanceState(outState)
     }
 
     private fun dp(value: Int): Int = (value * resources.displayMetrics.density + 0.5f).toInt()
@@ -108,7 +118,7 @@ class MainActivity : Activity() {
     private fun buildUi() {
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setBackgroundColor(BG)
+            background = AuroraDrawable()
             setOnApplyWindowInsetsListener { v, insets ->
                 @Suppress("DEPRECATION")
                 v.setPadding(0, insets.systemWindowInsetTop, 0, insets.systemWindowInsetBottom)
@@ -126,7 +136,7 @@ class MainActivity : Activity() {
             textSize = 15f
             setTextColor(FG)
             setHintTextColor(DIM)
-            hint = "Ghosium Search ili URL"
+            hint = "⌕  Ghosium Search ili URL"
             background = shape()
             setPadding(dp(15), 0, dp(15), 0)
             setSelectAllOnFocus(true)
@@ -151,7 +161,7 @@ class MainActivity : Activity() {
             visibility = View.INVISIBLE
         }
         root.addView(progress, LinearLayout.LayoutParams(-1, dp(3)))
-        content = FrameLayout(this).apply { setBackgroundColor(BG) }
+        content = FrameLayout(this)
         root.addView(content, LinearLayout.LayoutParams(-1, 0, 1f))
 
         val bottom = LinearLayout(this).apply { setPadding(dp(7), dp(8), dp(7), dp(12)) }
@@ -292,7 +302,10 @@ class MainActivity : Activity() {
                     userAgent?.let { addRequestHeader("User-Agent", it) }
                     CookieManager.getInstance().getCookie(url)?.let { addRequestHeader("Cookie", it) }
                 }
-                (getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager).enqueue(request)
+                val id = (getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager).enqueue(request)
+                val prefs = getSharedPreferences("ghosium_downloads", Context.MODE_PRIVATE)
+                val ids = (prefs.getString("ids", "") ?: "").split(\",\").mapNotNull { it.toLongOrNull() }.takeLast(49)
+                prefs.edit().putString("ids", (ids + id).joinToString(",")).apply()
                 message("Preuzimanje je započelo")
             } catch (_: Exception) {
                 message("Preuzimanje nije uspjelo")
@@ -302,6 +315,7 @@ class MainActivity : Activity() {
 
     private fun showTab(index: Int) {
         if (index !in tabs.indices) return
+        panel = null
         active()?.web?.onPause()
         selected = index
         val tab = tabs[index]
@@ -318,58 +332,60 @@ class MainActivity : Activity() {
         updateButtons()
     }
 
-    private fun homeView(): View {
-        val scroll = ScrollView(this)
-        val column = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(dp(24), dp(35), dp(24), dp(25))
+    private fun homeView(): View = screens.home(
+        onQuery = { navigate(it) },
+        onMarks = { showItems("Oznake", store.bookmarks) },
+        onDownloads = { showDownloads() },
+        onSettings = { showPrivacySettings() },
+        onHistory = { showItems("Povijest", store.history) },
+        onTabs = { showTabs() }
+    )
+
+    private fun showPanel(name: String, view: View) {
+        panel = name
+        active()?.web?.onPause()
+        content.removeAllViews()
+        (view.parent as? ViewGroup)?.removeView(view)
+        content.addView(view, FrameLayout.LayoutParams(-1, -1))
+        progress.visibility = View.INVISIBLE
+    }
+
+    private fun showWelcome() = showPanel("welcome", screens.welcome {
+        settingsPrefs.edit().putBoolean("introduced", true).apply()
+        showTab(selected)
+    })
+
+    private fun showSearch() = showPanel("search", screens.search(
+        store.history.toList(), address.text.toString()) { navigate(it) }
+    )
+
+    private fun showDownloads() {
+        val prefs = getSharedPreferences("ghosium_downloads", Context.MODE_PRIVATE)
+        val ids = (prefs.getString("ids", "") ?: "").split(',').mapNotNull { it.toLongOrNull() }.takeLast(30)
+        val manager = getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
+        val records = mutableListOf<GhosiumScreens.DownloadRow>()
+        for (id in ids.reversed()) {
+            try {
+                manager.query(DownloadManager.Query().setFilterById(id))?.use { cursor ->
+                    if (cursor.moveToFirst()) {
+                        val name = cursor.getString(cursor.getColumnIndexOrThrow(DownloadManager.COLUMN_TITLE))
+                        val status = cursor.getInt(cursor.getColumnIndexOrThrow(DownloadManager.COLUMN_STATUS))
+                        val state = when(status) {
+                            DownloadManager.STATUS_SUCCESSFUL -> "Završeno"
+                            DownloadManager.STATUS_FAILED -> "Neuspješno"
+                            DownloadManager.STATUS_RUNNING -> "Preuzimanje u tijeku"
+                            DownloadManager.STATUS_PAUSED -> "Pauzirano"
+                            else -> "Na čekanju"
+                        }
+                        records.add(GhosiumScreens.DownloadRow(name ?: "Datoteka", state))
+                    }
+                }
+            } catch (_: RuntimeException) { }
         }
-        scroll.addView(column)
-        column.addView(ImageView(this).apply {
-            setImageResource(R.drawable.ic_ghosium)
-            scaleType = ImageView.ScaleType.FIT_CENTER
-            contentDescription = "Ghosium logotip"
-        }, LinearLayout.LayoutParams(-1, dp(160)))
-        column.addView(text("GHOSIUM", 32f, FG, true).apply { gravity = Gravity.CENTER })
-        column.addView(text("Internet po tvojim pravilima.", 14f, DIM).apply {
-            gravity = Gravity.CENTER
-            setPadding(0, dp(10), 0, dp(35))
+        showPanel("downloads", screens.downloads(records) {
+            try { startActivity(Intent(DownloadManager.ACTION_VIEW_DOWNLOADS)) }
+            catch (_: Exception) { message("Preuzimanja nisu dostupna") }
         })
-        val quick = EditText(this).apply {
-            setSingleLine(true)
-            hint = "Ghosium Search ili URL"
-            setTextColor(FG)
-            setHintTextColor(DIM)
-            background = shape()
-            setPadding(dp(16), 0, dp(16), 0)
-            imeOptions = EditorInfo.IME_ACTION_SEARCH
-            setOnEditorActionListener { _, id, _ ->
-                if (id == EditorInfo.IME_ACTION_SEARCH) { navigate(text.toString()); true } else false
-            }
-        }
-        column.addView(quick, LinearLayout.LayoutParams(-1, dp(56)))
-        column.addView(text("Rezultate pretraživanja pruža DuckDuckGo", 12f, DIM).apply {
-            gravity = Gravity.CENTER
-            setPadding(0, dp(14), 0, 0)
-        })
-        column.addView(text("BRZE POVEZNICE", 12f, DIM, true).apply {
-            setPadding(0, dp(35), 0, dp(14))
-        })
-        listOf(
-            "Wikipedia" to "https://hr.wikipedia.org",
-            "Android Developers" to "https://developer.android.com",
-            "MDN Web Docs" to "https://developer.mozilla.org"
-        ).forEach { (name, url) ->
-            val tile = text("↗    " + name, 16f, FG, true).apply {
-                background = shape()
-                setPadding(dp(17), 0, 0, 0)
-                setOnClickListener { load(url) }
-            }
-            column.addView(tile, LinearLayout.LayoutParams(-1, dp(53)).apply {
-                bottomMargin = dp(10)
-            })
-        }
-        return scroll
     }
 
     private fun showHome() {
@@ -387,7 +403,7 @@ class MainActivity : Activity() {
     private fun load(url: String) {
         if (!url.startsWith("https://")) return
         val tab = active() ?: return
-        if (tab.home) { tab.home = false; showTab(selected) }
+        if (tab.home || panel != null) { tab.home = false; showTab(selected) }
         tab.url = url
         address.setText(url)
         tab.web.loadUrl(url)
@@ -412,27 +428,37 @@ class MainActivity : Activity() {
     }
 
     private fun showTabs() {
-        val labels = tabs.mapIndexed { index, tab ->
-            (index + 1).toString() + ". " + tab.title.take(65)
-        }.toTypedArray()
-        AlertDialog.Builder(this).setTitle("Kartice")
-            .setItems(labels) { _, index -> showTab(index) }
-            .setPositiveButton("Nova") { _, _ -> createTab() }
-            .setNeutralButton("Zatvori trenutnu") { _, _ -> closeTab() }
-            .setNegativeButton("Zatvori", null).show()
+        val entries = tabs.mapIndexed { i, tab ->
+            GhosiumScreens.TabRow(tab.title, tab.url, i == selected)
+        }
+        showPanel("tabs", screens.tabs(entries,
+            onOpen = { showTab(it) },
+            onClose = { closeTabAt(it) },
+            onNew = { createTab() }))
     }
 
-    private fun closeTab() {
-        val index = selected
+    private fun closeTabAt(index: Int) {
         if (index !in tabs.indices) return
         val tab = tabs.removeAt(index)
         (tab.web.parent as? ViewGroup)?.removeView(tab.web)
         tab.web.stopLoading()
         tab.web.destroy()
-        selected = -1
-        if (tabs.isEmpty()) createTab()
-        else showTab(index.coerceAtMost(tabs.lastIndex))
+        if (tabs.isEmpty()) {
+            selected = -1
+            createTab()
+        } else {
+            val next = when {
+                selected > index -> selected - 1
+                selected == index -> index.coerceAtMost(tabs.lastIndex)
+                else -> selected
+            }
+            selected = -1
+            showTab(next.coerceIn(0, tabs.lastIndex))
+            showTabs()
+        }
     }
+
+    private fun closeTab() = closeTabAt(selected)
 
     private fun showMenu() {
         val popup = PopupMenu(this, menuButton)
@@ -464,47 +490,34 @@ class MainActivity : Activity() {
     private fun showPrivacySettings() {
         val js = settingsPrefs.getBoolean("javascript", true)
         val cookies = settingsPrefs.getBoolean("cookies", true)
-        val items = arrayOf(
-            "JavaScript: " + if (js) "uključen" else "isključen",
-            "Kolačići: " + if (cookies) "dopušteni" else "blokirani",
-            "Tražilica: DuckDuckGo",
-            "Obriši podatke pregledavanja"
-        )
-        AlertDialog.Builder(this).setTitle("Ghosium • Privatnost")
-            .setItems(items) { _, index ->
-                when (index) {
-                    0 -> {
-                        val enabled = !js
-                        settingsPrefs.edit().putBoolean("javascript", enabled).apply()
-                        tabs.forEach { it.web.settings.javaScriptEnabled = enabled }
-                        message(if (enabled) "JavaScript uključen" else "JavaScript isključen")
-                    }
-                    1 -> {
-                        val enabled = !cookies
-                        settingsPrefs.edit().putBoolean("cookies", enabled).apply()
-                        CookieManager.getInstance().setAcceptCookie(enabled)
-                        if (!enabled) {
-                            CookieManager.getInstance().removeAllCookies {
-                                CookieManager.getInstance().flush()
-                            }
-                        }
-                        message(if (enabled) "Kolačići dopušteni" else "Kolačići blokirani")
-                    }
-                    2 -> AlertDialog.Builder(this).setTitle("Tražilica")
-                        .setMessage("Ghosium Search služi za unos upita. Rezultate prikazuje DuckDuckGo unutar preglednika. Oznake pružatelja pretrage ostaju dio sadržaja web-stranice.")
-                        .setPositiveButton("U redu", null).show()
-                    3 -> clearData()
+        showPanel("settings", screens.settings(js,cookies,
+            onJs = {enabled ->
+                settingsPrefs.edit().putBoolean("javascript",enabled).apply()
+                tabs.forEach { it.web.settings.javaScriptEnabled = enabled }
+                message(if(enabled) "JavaScript uključen" else "JavaScript isključen")
+            },
+            onCookies = {enabled ->
+                settingsPrefs.edit().putBoolean("cookies",enabled).apply()
+                CookieManager.getInstance().setAcceptCookie(enabled)
+                if(!enabled) CookieManager.getInstance().removeAllCookies {
+                    CookieManager.getInstance().flush()
                 }
-            }.setNegativeButton("Zatvori", null).show()
+                message(if(enabled) "Kolačići dopušteni" else "Kolačići blokirani")
+            },
+            onClear = { clearData() },
+            onInfo = { showPanel("info",screens.information()) }
+        ))
     }
 
     private fun showItems(title: String, items: List<BrowserStore.Item>) {
-        if (items.isEmpty()) { message("Nema spremljenih stavki"); return }
-        val copy = items.toList()
-        val labels = copy.map { it.title + "\n" + it.url }.toTypedArray()
-        AlertDialog.Builder(this).setTitle(title)
-            .setItems(labels) { _, i -> load(copy[i].url) }
-            .setNegativeButton("Zatvori", null).show()
+        showPanel(title, screens.collection(title,items.toList(),
+            onOpen = { load(it) },
+            onDelete = { item ->
+                if (title == "Oznake") store.toggleBookmark(item.title,item.url)
+                else store.removeHistory(item.url)
+                showItems(title,if(title=="Oznake")store.bookmarks else store.history)
+            }
+        ))
     }
 
     private fun clearData() {
@@ -535,6 +548,7 @@ class MainActivity : Activity() {
 
     @Deprecated("Android navigation callback")
     override fun onBackPressed() {
+        if (panel != null) { showTab(selected); return }
         val tab = active()
         if (tab != null && tab.web.canGoBack()) tab.web.goBack()
         else if (tabs.size > 1) closeTab()
