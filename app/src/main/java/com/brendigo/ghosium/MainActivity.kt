@@ -193,15 +193,14 @@ class MainActivity : Activity() {
                 marginEnd = dp(3)
             })
         }
-        add(action("‹", "Natrag") {
-            active()?.web?.let { if (it.canGoBack()) it.goBack() else showHome() }
+        add(action("‹", "Natrag") { navigateBack() })
+        add(action("›", "Naprijed") {
+            if (panel != null) showTab(selected)
+            active()?.let { tab -> if (!tab.home && tab.web.canGoForward()) tab.web.goForward() }
         })
-        add(action("›", "Naprijed") { active()?.web?.let { if (it.canGoForward()) it.goForward() } })
-        add(action("⟳", "Osvježi") { active()?.let { if (it.home) showHome() else it.web.reload() } })
-        starButton = action("☆", "Oznake") { toggleBookmark() }
-        add(starButton)
         tabButton = action("1", "Kartice") { showTabs() }
         add(tabButton)
+        add(action("⌂", "Početna") { showHome() })
         menuButton = action("⋮", "Izbornik") { showMenu() }
         add(menuButton)
         root.addView(bottom)
@@ -209,6 +208,18 @@ class MainActivity : Activity() {
     }
 
     private fun active(): Tab? = tabs.getOrNull(selected)
+
+    private fun navigateBack() {
+        if (panel != null) {
+            if (panel == "welcome") settingsPrefs.edit().putBoolean("introduced", true).apply()
+            showTab(selected)
+            return
+        }
+        val tab = active() ?: return
+        if (!tab.home && tab.web.canGoBack()) tab.web.goBack()
+        else if (!tab.home) showHome()
+        else if (tabs.size > 1) closeTab()
+    }
 
     private fun createTab() {
         if (tabs.size >= MAX_TABS) { message("Najviše osam kartica"); return }
@@ -367,6 +378,7 @@ class MainActivity : Activity() {
     private fun showTab(index: Int) {
         if (index !in tabs.indices) return
         panel = null
+        topBar.visibility = if (tabs[index].home) View.GONE else View.VISIBLE
         active()?.web?.onPause()
         selected = index
         val tab = tabs[index]
@@ -395,6 +407,7 @@ class MainActivity : Activity() {
 
     private fun showPanel(name: String, view: View) {
         panel = name
+        topBar.visibility = View.GONE
         active()?.web?.onPause()
         content.removeAllViews()
         (view.parent as? ViewGroup)?.removeView(view)
@@ -442,6 +455,7 @@ class MainActivity : Activity() {
 
     private fun showHome() {
         val tab = active() ?: return
+        tab.web.stopLoading()
         tab.home = true
         showTab(selected)
     }
@@ -464,12 +478,7 @@ class MainActivity : Activity() {
         address.clearFocus()
     }
 
-    private fun updateButtons() {
-        tabButton.text = tabs.size.toString()
-        val tab = active()
-        starButton.text = if (tab != null && !tab.home &&
-            store.bookmarks.any { it.url == tab.url }) "★" else "☆"
-    }
+    private fun updateButtons() { tabButton.text = tabs.size.toString() }
 
     private fun toggleBookmark() {
         val tab = active() ?: return
@@ -595,11 +604,8 @@ class MainActivity : Activity() {
 
     @Deprecated("Android navigation callback")
     override fun onBackPressed() {
-        if (panel != null) { showTab(selected); return }
-        val tab = active()
-        if (tab != null && tab.web.canGoBack()) tab.web.goBack()
-        else if (tabs.size > 1) closeTab()
-        else super.onBackPressed()
+        if (panel == null && active()?.home == true && tabs.size <= 1) super.onBackPressed()
+        else navigateBack()
     }
 
     override fun onPause() { active()?.web?.onPause(); super.onPause() }
