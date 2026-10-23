@@ -27,7 +27,7 @@ object UrlResolver {
                 !host.contains('.') || uri.port > 65535 || uri.port == 0 ||
                 uri.rawAuthority?.contains('\\') == true) return null
             url
-        } catch (_: IllegalArgumentException) {
+        } catch (_: java.net.URISyntaxException) {
             null
         }
     }
