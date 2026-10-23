@@ -16,4 +16,7 @@ class UrlResolverTest {
     @Test fun searchesPhrase() { assertNull(UrlResolver.resolve("hrvatske novosti")) }
     @Test fun searchesEmail() { assertNull(UrlResolver.resolve("ime@example.com")) }
     @Test fun ignoresEmpty() { assertNull(UrlResolver.resolve("    ")) }
+    @Test fun acceptsSecureCustomPort() { assertEquals("https://example.com:8443/docs", UrlResolver.resolve("example.com:8443/docs")) }
+    @Test fun rejectsInvalidCustomPort() { assertNull(UrlResolver.resolve("example.com:99999")) }
+
 }
