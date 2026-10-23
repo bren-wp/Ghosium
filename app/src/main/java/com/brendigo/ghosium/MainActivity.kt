@@ -427,12 +427,10 @@ class MainActivity : ComponentActivity() {
 
     private fun homeView(): View = screens.home(
         onQuery = { navigate(it) },
-        onHome = { showHome() },
         onMarks = { showItems("Oznake", store.bookmarks) },
         onDownloads = { showDownloads() },
         onSettings = { showPrivacySettings() },
-        onHistory = { showItems("Povijest", store.history) },
-        onTabs = { showTabs() }
+        onHistory = { showItems("Povijest", store.history) }
     )
 
     private fun showPanel(name: String, view: View) {
