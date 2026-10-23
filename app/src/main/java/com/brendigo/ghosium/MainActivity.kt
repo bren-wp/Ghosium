@@ -260,7 +260,7 @@ class MainActivity : Activity() {
 
             override fun onPageStarted(view: WebView, url: String?, favicon: android.graphics.Bitmap?) {
                 tab.navigationFailed = false
-                if (url?.startsWith("https://") == true) {
+                if (url?.startsWith("https://") == true && !tab.home) {
                     tab.url = url
                     tab.home = false
                 }
@@ -272,6 +272,7 @@ class MainActivity : Activity() {
             }
 
             override fun onPageFinished(view: WebView, url: String?) {
+                if (!tabs.contains(tab)) return
                 if (!tab.navigationFailed && !tab.home && url?.startsWith("https://") == true) {
                     tab.url = url
                     tab.title = view.title?.take(150)?.ifBlank { Uri.parse(url).host ?: "Web-stranica" }
@@ -649,18 +650,24 @@ class MainActivity : Activity() {
 
     private fun clearData() {
         AlertDialog.Builder(this).setTitle("Obriši podatke pregledavanja?")
-            .setMessage("Brišu se povijest, oznake, kolačići i predmemorija. Preuzete datoteke ostaju spremljene.")
+            .setMessage("Brišu se povijest, kolačići i podaci web-stranica. Oznake i preuzete datoteke ostaju spremljene.")
             .setPositiveButton("Obriši") { _, _ ->
-                tabs.forEach {
+                // Detach tabs first: callbacks from closing WebViews must not restore cleared history.
+                val oldTabs = tabs.toList()
+                tabs.clear()
+                selected = -1
+                panel = null
+                fileSelection?.onReceiveValue(null)
+                fileSelection = null
+                content.removeAllViews()
+                oldTabs.forEach {
                     (it.web.parent as? ViewGroup)?.removeView(it.web)
+                    it.web.stopLoading()
                     it.web.clearCache(true)
                     it.web.clearHistory()
                     it.web.destroy()
                 }
-                tabs.clear()
-                selected = -1
-                content.removeAllViews()
-                store.clear()
+                store.clearHistory()
                 WebStorage.getInstance().deleteAllData()
                 CookieManager.getInstance().removeAllCookies {
                     CookieManager.getInstance().flush()
