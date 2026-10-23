@@ -60,7 +60,7 @@ class GhosiumScreens(private val host:Activity) {
     }
     fun screen(page:String?=null,branding:Boolean=true,fill:(LinearLayout)->Unit):View{
         val frame=FrameLayout(host).apply{background=AuroraDrawable()}
-        val scroll=ScrollView(host).apply{fillViewport=true;clipToPadding=false}
+        val scroll=ScrollView(host).apply{isFillViewport=true;clipToPadding=false}
         val body=column()
         if(branding){
             val hdr=LinearLayout(host).apply{
