@@ -26,6 +26,7 @@ import android.webkit.SafeBrowsingResponse
 import android.webkit.SslErrorHandler
 import android.webkit.URLUtil
 import android.webkit.WebChromeClient
+import android.webkit.ValueCallback
 import android.webkit.WebResourceRequest
 import android.webkit.WebSettings
 import android.webkit.WebStorage
@@ -33,11 +34,9 @@ import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.EditText
 import android.widget.FrameLayout
-import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.PopupMenu
 import android.widget.ProgressBar
-import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
 import java.io.File
@@ -74,6 +73,7 @@ class MainActivity : Activity() {
     private val tabs = mutableListOf<Tab>()
     private val screens by lazy { GhosiumScreens(this) }
     private var panel: String? = null
+    private var fileSelection: ValueCallback<Array<Uri>>? = null
     private val settingsPrefs by lazy { getSharedPreferences("ghosium_settings", Context.MODE_PRIVATE) }
     private var selected = -1
 
@@ -298,6 +298,29 @@ class MainActivity : Activity() {
                 }
             }
             override fun onPermissionRequest(request: PermissionRequest) { request.deny() }
+            override fun onShowFileChooser(
+                webView: WebView,
+                callback: ValueCallback<Array<Uri>>,
+                params: FileChooserParams
+            ): Boolean {
+                fileSelection?.onReceiveValue(null)
+                fileSelection = callback
+                val chooser = Intent(Intent.ACTION_GET_CONTENT).apply {
+                    addCategory(Intent.CATEGORY_OPENABLE)
+                    type = "*/*"
+                    putExtra(Intent.EXTRA_ALLOW_MULTIPLE,
+                        params.mode == FileChooserParams.MODE_OPEN_MULTIPLE)
+                }
+                return try {
+                    @Suppress("DEPRECATION")
+                    startActivityForResult(Intent.createChooser(chooser, "Odaberi datoteku"), 2093)
+                    true
+                } catch (_: Exception) {
+                    fileSelection = null
+                    callback.onReceiveValue(null)
+                    false
+                }
+            }
         }
         web.setDownloadListener(DownloadListener { url, userAgent, disposition, mime, _ ->
             if (!url.startsWith("https://")) { message("Preuzimanje zahtijeva HTTPS"); return@DownloadListener }
@@ -342,6 +365,7 @@ class MainActivity : Activity() {
 
     private fun homeView(): View = screens.home(
         onQuery = { navigate(it) },
+        onHome = { showHome() },
         onMarks = { showItems("Oznake", store.bookmarks) },
         onDownloads = { showDownloads() },
         onSettings = { showPrivacySettings() },
@@ -564,7 +588,23 @@ class MainActivity : Activity() {
 
     override fun onPause() { active()?.web?.onPause(); super.onPause() }
     override fun onResume() { super.onResume(); if (panel == null && active()?.home == false) active()?.web?.onResume() }
+    @Deprecated("System file picker API")
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == 2093) {
+            val selectedFiles = if (resultCode == Activity.RESULT_OK) {
+                data?.clipData?.let { clip ->
+                    Array(clip.itemCount) { i -> clip.getItemAt(i).uri }
+                } ?: data?.data?.let { arrayOf(it) }
+            } else null
+            fileSelection?.onReceiveValue(selectedFiles)
+            fileSelection = null
+        }
+    }
+
     override fun onDestroy() {
+        fileSelection?.onReceiveValue(null)
+        fileSelection = null
         tabs.forEach {
             (it.web.parent as? ViewGroup)?.removeView(it.web)
             it.web.destroy()
