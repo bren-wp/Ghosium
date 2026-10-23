@@ -66,12 +66,12 @@ class GhosiumScreens(private val host:Activity) {
         if(branding){
             val hdr=LinearLayout(host).apply{
                 orientation=LinearLayout.VERTICAL;gravity=Gravity.CENTER
-                setPadding(0,dp(6),0,dp(20))
+                setPadding(0,dp(2),0,dp(5))
             }
-            hdr.addView(GhosiumMark(host),LinearLayout.LayoutParams(dp(115),dp(115)))
-            hdr.addView(title("G H O S I U M",25f,white,true).apply{gravity=Gravity.CENTER})
+            hdr.addView(GhosiumMark(host),LinearLayout.LayoutParams(dp(68),dp(68)))
+            hdr.addView(title("G H O S I U M",21f,white,true).apply{gravity=Gravity.CENTER})
             hdr.addView(title("Internet po tvojim pravilima",13f,muted).apply{gravity=Gravity.CENTER})
-            body.addView(hdr,lp(8))
+            body.addView(hdr,lp(2))
         }
         if(page!=null)body.addView(title(page,30f,white,true),lp(17))
         fill(body)
@@ -100,29 +100,83 @@ class GhosiumScreens(private val host:Activity) {
             LinearLayout.LayoutParams(dp(24),dp(38)))
         return bar
     }
+    /** Compact Chrome-style start page: no long panels or duplicated navigation. */
     fun home(onQuery:(String)->Unit,onHome:()->Unit,onMarks:()->Unit,onDownloads:()->Unit,
              onSettings:()->Unit,onHistory:()->Unit,onTabs:()->Unit):View=screen { c ->
-        val search=input("⌕  Ghosium Search ili URL",onQuery)
-        c.addView(search,lp(9))
-        c.addView(title("Rezultate pretraživanja pruža DuckDuckGo",12f,muted).apply{
-            gravity=Gravity.CENTER
-        },lp(18))
-        section(c,"Brze poveznice")
-        val first=LinearLayout(host);val second=LinearLayout(host)
-        fun addTile(parent:LinearLayout,t:String,symbol:String,action:()->Unit,firstColumn:Boolean){
-            parent.addView(row(t,"",symbol,action),LinearLayout.LayoutParams(0,dp(85),1f).apply{
-                if(firstColumn)rightMargin=dp(5) else leftMargin=dp(5)
+        c.addView(input("⌕  Pretraži ili upiši adresu",onQuery),lp(8))
+        c.addView(title("Ghosium Search",12f,muted).apply{gravity=Gravity.CENTER},
+            lp(20))
+        section(c,"Brzi pristup")
+        val quick=LinearLayout(host).apply {gravity=Gravity.CENTER}
+        fun tile(text:String, glyph:String, go:()->Unit) {
+            val item=LinearLayout(host).apply{
+                orientation=LinearLayout.VERTICAL
+                gravity=Gravity.CENTER
+                minimumHeight=dp(70)
+                background=card()
+                contentDescription=text
+                setOnClickListener{go()}
+                setPadding(dp(2),dp(7),dp(2),dp(7))
+            }
+            item.addView(title(glyph,24f,mint).apply{gravity=Gravity.CENTER})
+            item.addView(title(text,11f,white).apply{gravity=Gravity.CENTER;maxLines=1})
+            quick.addView(item,LinearLayout.LayoutParams(0,dp(74),1f).apply{
+                marginEnd=dp(4)
             })
         }
-        addTile(first,"Početna","⌂",onHome,true)
-        addTile(first,"Oznake","♧",onMarks,false)
-        addTile(second,"Preuzimanja","↓",onDownloads,true)
-        addTile(second,"Privatnost","◇",onSettings,false)
-        c.addView(first,lp(11));c.addView(second,lp(15))
-        section(c,"Preglednik")
-        c.addView(row("Povijest","Nedavno posjećene stranice","◷",onHistory),lp())
-        c.addView(row("Kartice","Otvorene web-stranice","▣",onTabs),lp())
+        tile("Oznake","☆",onMarks)
+        tile("Povijest","◷",onHistory)
+        tile("Datoteke","↓",onDownloads)
+        tile("Postavke","⚙",onSettings)
+        c.addView(quick,lp(8))
     }
+
+    /** Results and input are always Ghosium native UI; sources remain honestly attributed. */
+    fun searchResults(query:String,items:List<GhosiumResult>,isLoading:Boolean,
+                      error:String?,onSearch:(String)->Unit,onOpen:(String)->Unit):View =
+        screen("Ghosium Search",branding=false) { c ->
+            val badge=LinearLayout(host).apply{
+                orientation=LinearLayout.HORIZONTAL;gravity=Gravity.CENTER_VERTICAL
+            }
+            badge.addView(GhosiumMark(host),LinearLayout.LayoutParams(dp(38),dp(38)).apply{
+                marginEnd=dp(10)
+            })
+            badge.addView(title("GHOSIUM",16f,white,true))
+            c.addView(badge,lp(10))
+            val field=input("Pretraži web",onSearch)
+            field.setText(query)
+            field.setSelection(field.text.length)
+            c.addView(field,lp(13))
+            val note=if(GhosiumSearchRepository.WEB_SEARCH_BASE_URL.isNotBlank())
+                "Ghosium Search · web rezultati" else
+                "Ghosium Search · Wikipedia (ograničeni rezultati)"
+            c.addView(title(note,12f,muted),lp(13))
+            if(isLoading) {
+                c.addView(title("Pretražujem…",15f,muted),lp())
+            } else if(error!=null) {
+                c.addView(title("Pretraga nije dostupna: "+error,14f,muted),lp())
+            } else if(items.isEmpty()) {
+                c.addView(title("Nema rezultata za ovaj pojam.",15f,muted),lp())
+            } else {
+                items.forEach { result ->
+                    val resultCard=LinearLayout(host).apply{
+                        orientation=LinearLayout.VERTICAL
+                        setPadding(dp(13),dp(12),dp(13),dp(12))
+                        background=card()
+                        minimumHeight=dp(73)
+                        setOnClickListener {onOpen(result.url)}
+                        contentDescription="Otvori "+result.title
+                    }
+                    resultCard.addView(title(result.title,16f,white,true).apply{maxLines=2})
+                    resultCard.addView(title(result.url,12f,mint).apply{maxLines=1})
+                    if(result.description.isNotBlank())resultCard.addView(
+                        title(result.description,13f,muted).apply{maxLines=2})
+                    resultCard.addView(title("Izvor: "+result.source,11f,muted))
+                    c.addView(resultCard,lp(8))
+                }
+            }
+        }
+
     fun welcome(onContinue:()->Unit):View=screen { c ->
         c.addView(title("Dobro došli u Ghosium",26f,white,true).apply{
             gravity=Gravity.CENTER
@@ -208,7 +262,7 @@ class GhosiumScreens(private val host:Activity) {
                 override fun afterTextChanged(s:Editable?){}
             })
             c.addView(input,lp(8))
-            c.addView(title("Rezultate pretraživanja pruža DuckDuckGo",12f,muted).apply{
+            c.addView(title("Ghosium Search",12f,muted).apply{
                 gravity=Gravity.CENTER
             },lp(16))
             c.addView(button("Pretraži  →"){onSearch(input.text.toString())},lp(13))
@@ -241,7 +295,7 @@ class GhosiumScreens(private val host:Activity) {
             })
             c.addView(bar,lp(10))
         }
-        c.addView(row("Ghosium Search","Rezultate pruža DuckDuckGo","⌕",onInfo),lp())
+        c.addView(row("Ghosium Search","Nativni rezultati i vlastiti web servis","⌕",onInfo),lp())
         switchRow("JavaScript","Izvršavanje JavaScripta na stranicama",js,onJs)
         switchRow("Kolačići","Dopusti kolačiće web-stranicama",cookies,onCookies)
         c.addView(row("Obriši podatke","Povijest, kolačići i predmemorija","⌫",onClear),lp(12))
@@ -254,6 +308,6 @@ class GhosiumScreens(private val host:Activity) {
     }
     fun information():View=screen("Sigurnost Ghosiuma"){c->
         c.addView(title("Ghosium koristi Android System WebView i zaštićene HTTPS veze. Nevaljani SSL certifikati se odbijaju. Safe Browsing štiti od poznatih opasnih web-stranica.",16f,white),lp(20))
-        c.addView(title("Pretraživanje otvara rezultate na DuckDuckGo web-stranici. Ghosium trenutačno nema potpuno odvojeni privatni profil ili ugrađeni blokator svih tragača. Preglednik nije anonimizacijski alat.",15f,muted),lp())
+        c.addView(title("Ghosium prikazuje rezultate unutar svojeg nativnog sučelja. Bez konfiguriranog vlastitog web servisa dostupna je samo ograničena pretraga Wikipedije. Privatni profil i potpuno blokiranje tragača još nisu implementirani.",15f,muted),lp())
     }
 }
