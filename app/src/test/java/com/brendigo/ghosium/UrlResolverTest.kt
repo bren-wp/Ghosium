@@ -13,7 +13,7 @@ class UrlResolverTest {
     @Test fun blocksCredentials() { assertNull(UrlResolver.resolve("https://user@evil.example")) }
     @Test fun blocksMissingHost() { assertNull(UrlResolver.resolve("https://")) }
     @Test fun blocksBadPort() { assertNull(UrlResolver.resolve("example.com:99999")) }
-    @Test fun searchesPhrase() { assertEquals("https://duckduckgo.com/?q=hrvatske+novosti", UrlResolver.resolve("hrvatske novosti")) }
-    @Test fun searchesEmail() { assertEquals("https://duckduckgo.com/?q=ime%40example.com", UrlResolver.resolve("ime@example.com")) }
+    @Test fun searchesPhrase() { assertNull(UrlResolver.resolve("hrvatske novosti")) }
+    @Test fun searchesEmail() { assertNull(UrlResolver.resolve("ime@example.com")) }
     @Test fun ignoresEmpty() { assertNull(UrlResolver.resolve("    ")) }
 }

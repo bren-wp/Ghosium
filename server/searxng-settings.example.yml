@@ -1,0 +1,17 @@
+# Ghosium Search / SearXNG configuration template (NOT a deployed service).
+# Copy to core-config/settings.yml of the official SearXNG Docker Compose stack.
+use_default_settings: true
+general:
+  debug: false
+  instance_name: "Ghosium Search"
+search:
+  safe_search: 1
+  default_lang: "hr"
+  autocomplete: ""
+  formats:
+    - html
+    - json
+server:
+  secret_key: "REPLACE_WITH_A_LONG_RANDOM_SECRET_ON_SERVER"
+  limiter: true
+  image_proxy: true

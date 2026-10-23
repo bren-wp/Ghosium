@@ -84,6 +84,8 @@ jobs:
           fi
       - name: Build, test and inspect APK/AAB
         if: steps.guard.outputs.publish == 'true'
+        env:
+          GHOSIUM_SEARCH_BASE_URL: ${{ vars.GHOSIUM_SEARCH_BASE_URL }}
         run: gradle --no-daemon :app:lintDebug :app:testDebugUnitTest :app:assembleDebug :app:assembleRelease :app:bundleRelease
       - name: Package release files
         if: steps.guard.outputs.publish == 'true'

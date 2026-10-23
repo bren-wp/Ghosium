@@ -54,3 +54,10 @@ Functional navigation includes actual WebView navigation, bookmark management, U
 - GitHub Actions performs Android lint, unit tests, APK and AAB builds before release. Real-device and pixel-diff screen QA remain pending.
 
 Current prerelease remains **not Google-Play ready** without a correctly secured production upload key. GitHub emits clearly labelled debug APK and unsigned AAB in its absence. The app still does **not** provide a separate incognito browser profile.
+
+## Ghosium v0.1.4 — Chrome-like simplicity and native results
+- Compact home screen, smaller Ghosium identity, one primary search/address field and four directly accessible shortcuts, with five always-available bottom browser controls.
+- Typed keywords render native Ghosium result cards without navigating to a DuckDuckGo/other search-site interface.
+- With no configured own service, **only Wikipedia** results are available and are labelled as such. For broader web search a Brendigo-controlled HTTPS SearXNG backend must be deployed; see [Ghosium Search setup](docs/GHOSIUM_SEARCH.md). This is not a proprietary search index.
+- A working service URL is selected via repo variable `GHOSIUM_SEARCH_BASE_URL` during CI and release builds; no upstream secrets are stored in the app.
+- No promise of perfect 1:1 pixel parity or zero crashes without device screenshots and QA. APK remains debug and AAB unsigned until secured signing secrets exist.
