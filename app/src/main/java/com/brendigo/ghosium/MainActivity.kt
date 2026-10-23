@@ -82,6 +82,7 @@ class MainActivity : ComponentActivity() {
     private val tabs = mutableListOf<Tab>()
     private val screens by lazy { GhosiumScreens(this) }
     private val searchRepository by lazy { GhosiumSearchRepository() }
+    private val sessionStore by lazy { TabSessionStore(this) }
     private var searchRequestId = 0
     private var panel: String? = null
     private var fileSelection: ValueCallback<Array<Uri>>? = null
@@ -111,15 +112,22 @@ class MainActivity : ComponentActivity() {
         store = BrowserStore(this)
         CookieManager.getInstance().setAcceptCookie(settingsPrefs.getBoolean("cookies", true))
         buildUi()
-        val restoredUrls = savedInstanceState?.getStringArrayList("ghosium_urls")
-        val restoredHomes = savedInstanceState?.getBooleanArray("ghosium_homes")
-        if (!restoredUrls.isNullOrEmpty() && restoredHomes != null && restoredUrls.size == restoredHomes.size) {
-            restoredUrls.take(MAX_TABS).forEachIndexed { idx, url ->
-                createTab()
-                if (!restoredHomes[idx] && url.startsWith("https://")) load(url)
-            }
-            if (tabs.isNotEmpty()) showTab(savedInstanceState.getInt("ghosium_selected", 0).coerceIn(0,tabs.lastIndex))
-        } else createTab()
+        val restored = if (savedInstanceState != null) {
+            val urls = savedInstanceState.getStringArrayList("ghosium_urls").orEmpty()
+            val homes = savedInstanceState.getBooleanArray("ghosium_homes")
+            if (homes != null && urls.size == homes.size) {
+                SessionPolicy.normalize(urls.mapIndexed { i, url ->
+                    SessionPolicy.Entry(url, homes[i])
+                }, savedInstanceState.getInt("ghosium_selected", 0))
+            } else sessionStore.restore()
+        } else sessionStore.restore()
+        restored.entries.forEach { item ->
+            val web = WebView(this)
+            val tab = Tab(web, url = item.url, home = item.home)
+            setupWebView(tab)
+            tabs.add(tab)
+        }
+        showTab(restored.selected)
         if (!settingsPrefs.getBoolean("introduced", false)) showWelcome()
     }
 
@@ -128,6 +136,19 @@ class MainActivity : ComponentActivity() {
         outState.putBooleanArray("ghosium_homes", tabs.map { it.home }.toBooleanArray())
         outState.putInt("ghosium_selected", selected.coerceAtLeast(0))
         super.onSaveInstanceState(outState)
+    }
+
+    private fun persistTabs() {
+        if (tabs.isEmpty()) {
+            sessionStore.clear()
+        } else {
+            sessionStore.save(tabs.map { SessionPolicy.Entry(it.url, it.home) }, selected)
+        }
+    }
+
+    override fun onStop() {
+        persistTabs()
+        super.onStop()
     }
 
     private fun dp(value: Int): Int = (value * resources.displayMetrics.density + 0.5f).toInt()
@@ -171,7 +192,6 @@ class MainActivity : ComponentActivity() {
             gravity = Gravity.CENTER_VERTICAL
             setPadding(dp(10), dp(10), dp(10), dp(8))
         }
-        top.addView(action("⌂", "Početna") { showHome() }, LinearLayout.LayoutParams(dp(48), dp(50)))
         address = EditText(this).apply {
             setSingleLine(true)
             textSize = 15f
@@ -187,12 +207,7 @@ class MainActivity : ComponentActivity() {
                 if (actionId == EditorInfo.IME_ACTION_GO) { navigate(address.text.toString()); true } else false
             }
         }
-        top.addView(address, LinearLayout.LayoutParams(0, dp(50), 1f).apply {
-            marginStart = dp(8)
-            marginEnd = dp(8)
-        })
-        top.addView(action("↗", "Otvori adresu") { navigate(address.text.toString()) },
-            LinearLayout.LayoutParams(dp(48), dp(50)))
+        top.addView(address, LinearLayout.LayoutParams(-1, dp(50)))
         topBar = top
         root.addView(top)
 
@@ -421,6 +436,9 @@ class MainActivity : ComponentActivity() {
             content.addView(tab.web, FrameLayout.LayoutParams(-1, -1))
             tab.web.onResume()
             address.setText(tab.url)
+            if (tab.web.url == null && BrowserPolicy.isHttpsAddress(tab.url)) {
+                tab.web.loadUrl(tab.url)
+            }
         }
         updateButtons()
     }
@@ -715,6 +733,7 @@ class MainActivity : ComponentActivity() {
                     it.web.destroy()
                 }
                 store.clearHistory()
+                sessionStore.clear()
                 WebStorage.getInstance().deleteAllData()
                 CookieManager.getInstance().removeAllCookies {
                     CookieManager.getInstance().flush()
