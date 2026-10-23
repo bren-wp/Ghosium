@@ -518,19 +518,19 @@ class MainActivity : ComponentActivity() {
         val query = rawQuery.trim().take(200)
         if (query.isEmpty()) return
         val request = ++searchRequestId
-        fun present(items: List<GhosiumResult>, loading: Boolean, error: String?) {
-            showPanel("results", screens.searchResults(
-                query, items, loading, error,
-                onSearch = { navigate(it) },
-                onOpen = { load(it) }
-            ))
-        }
-        present(emptyList(), true, null)
+        val searchView = screens.searchResults(
+            query,
+            onSearch = { navigate(it) },
+            onOpen = { load(it) },
+            onRetry = { showResults(query) }
+        )
+        showPanel("results", searchView.root)
+        searchView.update(emptyList(), true, null)
         searchRepository.search(query) { response ->
             runOnUiThread {
                 if (!isDestroyed && panel == "results" && request == searchRequestId) {
-                    present(response.getOrDefault(emptyList()), false,
-                        response.exceptionOrNull()?.let { "Provjeri internetsku vezu i pokušaj ponovno" })
+                    searchView.update(response.getOrDefault(emptyList()), false,
+                        response.exceptionOrNull()?.let { "Provjeri mrežu i pokušaj ponovno" })
                 }
             }
         }
