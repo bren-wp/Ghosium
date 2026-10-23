@@ -1,6 +1,8 @@
 package com.brendigo.ghosium
 
 import android.app.Activity
+import androidx.activity.ComponentActivity
+import androidx.activity.OnBackPressedCallback
 import android.app.AlertDialog
 import android.app.DownloadManager
 import android.content.Context
@@ -51,7 +53,7 @@ import java.io.File
  * Renders websites using the installed Android System WebView.
  * This implementation DOES NOT claim isolated incognito or ad blocking.
  */
-class MainActivity : Activity() {
+class MainActivity : ComponentActivity() {
     private companion object {
         const val BG = 0xFF090D16.toInt()
         const val PANEL = 0xFF141C2A.toInt()
@@ -85,6 +87,12 @@ class MainActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
+            override fun handleOnBackPressed() {
+                if (panel == null && active()?.home == true && tabs.size <= 1) finish()
+                else navigateBack()
+            }
+        })
         store = BrowserStore(this)
         CookieManager.getInstance().setAcceptCookie(settingsPrefs.getBoolean("cookies", true))
         buildUi()
@@ -679,12 +687,6 @@ class MainActivity : Activity() {
     }
 
     private fun message(value: String) = Toast.makeText(this, value, Toast.LENGTH_SHORT).show()
-
-    @Deprecated("Android navigation callback")
-    override fun onBackPressed() {
-        if (panel == null && active()?.home == true && tabs.size <= 1) super.onBackPressed()
-        else navigateBack()
-    }
 
     override fun onPause() { active()?.web?.onPause(); super.onPause() }
     override fun onResume() { super.onResume(); if (panel == null && active()?.home == false) active()?.web?.onResume() }
