@@ -1,6 +1,7 @@
 package com.brendigo.ghosium
 
 import android.app.Activity
+import android.app.AlertDialog
 import android.content.res.ColorStateList
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
@@ -99,7 +100,7 @@ class GhosiumScreens(private val host:Activity) {
             LinearLayout.LayoutParams(dp(24),dp(38)))
         return bar
     }
-    fun home(onQuery:(String)->Unit,onMarks:()->Unit,onDownloads:()->Unit,
+    fun home(onQuery:(String)->Unit,onHome:()->Unit,onMarks:()->Unit,onDownloads:()->Unit,
              onSettings:()->Unit,onHistory:()->Unit,onTabs:()->Unit):View=screen { c ->
         val search=input("⌕  Ghosium Search ili URL",onQuery)
         c.addView(search,lp(9))
@@ -113,7 +114,7 @@ class GhosiumScreens(private val host:Activity) {
                 if(firstColumn)rightMargin=dp(5) else leftMargin=dp(5)
             })
         }
-        addTile(first,"Početna","⌂",{onQuery("https://duckduckgo.com")},true)
+        addTile(first,"Početna","⌂",onHome,true)
         addTile(first,"Oznake","♧",onMarks,false)
         addTile(second,"Preuzimanja","↓",onDownloads,true)
         addTile(second,"Privatnost","◇",onSettings,false)
@@ -129,9 +130,9 @@ class GhosiumScreens(private val host:Activity) {
         c.addView(title("Nativni Android preglednik s Ghosium dizajnom i kontrolama privatnosti.",14f,muted).apply{
             gravity=Gravity.CENTER
         },lp(25))
-        c.addView(row("Brzo pregledavanje","Android System WebView","ϟ",{}),lp())
-        c.addView(row("Privatnost","Kontrole kolačića i JavaScripta","◇",{}),lp())
-        c.addView(row("Preuzimanja","Android upravitelj preuzimanja","↓",{}),lp(27))
+        c.addView(row("Brzo pregledavanje","Android System WebView","ϟ",{ featureInfo("Brzo pregledavanje","Ghosium prikazuje web-stranice pomoću Android System WebView tehnologije.") }),lp())
+        c.addView(row("Privatnost","Kontrole kolačića i JavaScripta","◇",{ featureInfo("Privatnost","Omogućeno je upravljanje kolačićima i JavaScriptom. Anonimno pregledavanje nije uključeno.") }),lp())
+        c.addView(row("Preuzimanja","Android upravitelj preuzimanja","↓",{ featureInfo("Preuzimanja","Preuzete datoteke spremljene su Android sustavskim upraviteljem preuzimanja.") }),lp(27))
         c.addView(button("Započni  →",onContinue),lp())
     }
     fun tabs(items:List<TabRow>,onOpen:(Int)->Unit,onClose:(Int)->Unit,onNew:()->Unit):View=
@@ -246,6 +247,10 @@ class GhosiumScreens(private val host:Activity) {
         c.addView(row("Obriši podatke","Povijest, kolačići i predmemorija","⌫",onClear),lp(12))
         section(c,"Sigurnost")
         c.addView(row("Informacije o zaštiti","HTTPS, Safe Browsing i ograničenja","◇",onInfo),lp())
+    }
+    private fun featureInfo(heading:String, description:String) {
+        AlertDialog.Builder(host).setTitle(heading).setMessage(description)
+            .setPositiveButton("U redu",null).show()
     }
     fun information():View=screen("Sigurnost Ghosiuma"){c->
         c.addView(title("Ghosium koristi Android System WebView i zaštićene HTTPS veze. Nevaljani SSL certifikati se odbijaju. Safe Browsing štiti od poznatih opasnih web-stranica.",16f,white),lp(20))
