@@ -101,8 +101,8 @@ class GhosiumScreens(private val host:Activity) {
         return bar
     }
     /** Compact Chrome-style start page: no long panels or duplicated navigation. */
-    fun home(onQuery:(String)->Unit,onHome:()->Unit,onMarks:()->Unit,onDownloads:()->Unit,
-             onSettings:()->Unit,onHistory:()->Unit,onTabs:()->Unit):View=screen { c ->
+    fun home(onQuery:(String)->Unit,onMarks:()->Unit,onDownloads:()->Unit,
+             onSettings:()->Unit,onHistory:()->Unit):View=screen { c ->
         c.addView(input("⌕  Pretraži ili upiši adresu",onQuery),lp(8))
         c.addView(title("Ghosium Search",12f,muted).apply{gravity=Gravity.CENTER},
             lp(20))
