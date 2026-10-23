@@ -84,7 +84,7 @@ jobs:
           fi
       - name: Build, test and inspect APK/AAB
         if: steps.guard.outputs.publish == 'true'
-        run: gradle --no-daemon :app:testDebugUnitTest :app:assembleDebug :app:assembleRelease :app:bundleRelease
+        run: gradle --no-daemon :app:lintDebug :app:testDebugUnitTest :app:assembleDebug :app:assembleRelease :app:bundleRelease
       - name: Package release files
         if: steps.guard.outputs.publish == 'true'
         env:
