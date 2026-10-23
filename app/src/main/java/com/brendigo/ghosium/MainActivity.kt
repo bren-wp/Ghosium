@@ -479,11 +479,7 @@ class MainActivity : Activity() {
             selected = -1
             createTab()
         } else {
-            val next = when {
-                selected > index -> selected - 1
-                selected == index -> index.coerceAtMost(tabs.lastIndex)
-                else -> selected
-            }
+            val next = TabSelection.afterClose(selected, index, tabs.size)
             selected = -1
             showTab(next.coerceIn(0, tabs.lastIndex))
             showTabs()
