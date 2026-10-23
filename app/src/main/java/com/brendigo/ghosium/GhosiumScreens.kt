@@ -194,6 +194,22 @@ class GhosiumScreens(private val host:Activity) {
         return SearchView(view,render)
     }
 
+    /** Native error view avoids opaque Android System WebView error pages. */
+    fun pageError(message:String,onRetry:(()->Unit)?,onHome:()->Unit):View =
+        screen("Nije moguće otvoriti stranicu", branding=false) { c ->
+            val mark=GhosiumMark(host)
+            c.addView(mark,LinearLayout.LayoutParams(dp(72),dp(72)).apply{
+                gravity=Gravity.CENTER_HORIZONTAL
+                bottomMargin=dp(16)
+            })
+            c.addView(title(message,16f,white).apply{
+                gravity=Gravity.CENTER
+                textAlignment=View.TEXT_ALIGNMENT_CENTER
+            },lp(22))
+            if(onRetry!=null) c.addView(button("Pokušaj ponovno",onRetry),lp(12))
+            c.addView(row("Ghosium početna","Vrati se na početni zaslon","⌂",onHome),lp())
+        }
+
     fun welcome(onContinue:()->Unit):View=screen { c ->
         c.addView(title("Dobro došli u Ghosium",26f,white,true).apply{
             gravity=Gravity.CENTER
