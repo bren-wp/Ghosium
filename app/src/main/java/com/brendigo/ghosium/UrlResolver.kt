@@ -1,7 +1,6 @@
 package com.brendigo.ghosium
 
 import java.net.URI
-import java.net.URLEncoder
 import java.util.Locale
 
 object UrlResolver {
@@ -15,7 +14,7 @@ object UrlResolver {
         if (!value.contains('@') && !value.any { it.isWhitespace() } && value.contains('.')) {
             return validHttps("https://" + value)
         }
-        return "https://duckduckgo.com/?q=" + URLEncoder.encode(value, "UTF-8")
+        return null
     }
 
     private fun validHttps(url: String): String? {
