@@ -44,3 +44,13 @@ Implemented original native Android Views for Welcome, Home, Ghosium Search, Tab
 Functional navigation includes actual WebView navigation, bookmark management, URL validation, tab switching and closing, individual history deletion, system file picker for website uploads, DownloadManager download status, and JavaScript/cookie toggles. Tab URLs reload after Activity recreation. DuckDuckGo still provides the external web search results page, inside Ghosium chrome.
 
 **Scope truth:** The provided concept screenshots remain design targets, and there has not yet been a visual pixel-diff review on Android emulators across density/font scales. No full incognito profile, proprietary search engine, or complete anti-tracking engine is claimed. Android CI validates compilation, basic unit tests and AAB construction, not a complete mobile QA certification. For signed Play-ready APK/AAB, configure the Ghosium upload keystore as repository secrets, never commit it.
+
+## Ghosium 0.1.3 — native browser hardening
+- Five-button native bottom toolbar matches the design's core navigation layout. Address chrome is hidden while on home / native panels.
+- Browser menu actions operate on the actual active WebView: bookmark, refresh, find in page, copy URL and share via Android.
+- The **Clear browsing data** confirmation preserves bookmarks and downloaded files, deleting history, cookies, WebStorage and cached WebView data.
+- Failed TLS, Safe Browsing, and main-frame network loads are omitted from recorded history.
+- The shared `BrowserPolicy` enforces HTTPS and sanitizes DownloadManager filenames; JVM regression tests cover these rules.
+- GitHub Actions performs Android lint, unit tests, APK and AAB builds before release. Real-device and pixel-diff screen QA remain pending.
+
+Current prerelease remains **not Google-Play ready** without a correctly secured production upload key. GitHub emits clearly labelled debug APK and unsigned AAB in its absence. The app still does **not** provide a separate incognito browser profile.
