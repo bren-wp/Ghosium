@@ -7,12 +7,19 @@ val hasUploadSigning = listOf(uploadKeystore, uploadStorePass, uploadKeyAlias, u
 android {
     namespace = "com.brendigo.ghosium"
     compileSdk = 36
+    buildFeatures { buildConfig = true }
     defaultConfig {
         applicationId = "com.brendigo.ghosium"
         minSdk = 29
         targetSdk = 36
-        versionCode = 4
-        versionName = "0.1.3"
+        versionCode = 5
+        versionName = "0.1.4"
+        val configuredUrl = providers.gradleProperty("GHOSIUM_SEARCH_BASE_URL")
+            .orElse(providers.environmentVariable("GHOSIUM_SEARCH_BASE_URL")).orElse("").get()
+        require(configuredUrl.isBlank() || (configuredUrl.startsWith("https://") && !configuredUrl.contains('"'))) {
+            "GHOSIUM_SEARCH_BASE_URL must be an HTTPS base address"
+        }
+        buildConfigField("String", "GHOSIUM_SEARCH_BASE_URL", "\""+configuredUrl+"\"")
     }
     signingConfigs {
         if (hasUploadSigning) {
