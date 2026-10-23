@@ -26,18 +26,18 @@ import android.webkit.SafeBrowsingResponse
 import android.webkit.SslErrorHandler
 import android.webkit.URLUtil
 import android.webkit.WebChromeClient
+import android.webkit.ValueCallback
 import android.webkit.WebResourceRequest
+import android.webkit.WebResourceError
 import android.webkit.WebSettings
 import android.webkit.WebStorage
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.EditText
 import android.widget.FrameLayout
-import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.PopupMenu
 import android.widget.ProgressBar
-import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
 import java.io.File
@@ -72,6 +72,9 @@ class MainActivity : Activity() {
     private lateinit var starButton: TextView
     private lateinit var menuButton: TextView
     private val tabs = mutableListOf<Tab>()
+    private val screens by lazy { GhosiumScreens(this) }
+    private var panel: String? = null
+    private var fileSelection: ValueCallback<Array<Uri>>? = null
     private val settingsPrefs by lazy { getSharedPreferences("ghosium_settings", Context.MODE_PRIVATE) }
     private var selected = -1
 
@@ -80,13 +83,33 @@ class MainActivity : Activity() {
         store = BrowserStore(this)
         CookieManager.getInstance().setAcceptCookie(settingsPrefs.getBoolean("cookies", true))
         buildUi()
-        createTab()
+        val restoredUrls = savedInstanceState?.getStringArrayList("ghosium_urls")
+        val restoredHomes = savedInstanceState?.getBooleanArray("ghosium_homes")
+        if (!restoredUrls.isNullOrEmpty() && restoredHomes != null && restoredUrls.size == restoredHomes.size) {
+            restoredUrls.take(MAX_TABS).forEachIndexed { idx, url ->
+                createTab()
+                if (!restoredHomes[idx] && url.startsWith("https://")) load(url)
+            }
+            if (tabs.isNotEmpty()) showTab(savedInstanceState.getInt("ghosium_selected", 0).coerceIn(0,tabs.lastIndex))
+        } else createTab()
+        if (!settingsPrefs.getBoolean("introduced", false)) showWelcome()
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        outState.putStringArrayList("ghosium_urls", ArrayList(tabs.map { it.url }))
+        outState.putBooleanArray("ghosium_homes", tabs.map { it.home }.toBooleanArray())
+        outState.putInt("ghosium_selected", selected.coerceAtLeast(0))
+        super.onSaveInstanceState(outState)
     }
 
     private fun dp(value: Int): Int = (value * resources.displayMetrics.density + 0.5f).toInt()
 
     private fun shape(color: Int = PANEL, radius: Int = 18): GradientDrawable =
-        GradientDrawable().apply { setColor(color); cornerRadius = dp(radius).toFloat() }
+        GradientDrawable().apply {
+            setColor(color)
+            cornerRadius = dp(radius).toFloat()
+            setStroke(dp(1), 0xFF30405B.toInt())
+        }
 
     private fun text(value: String, size: Float, color: Int = FG, heavy: Boolean = false): TextView =
         TextView(this).apply {
@@ -108,7 +131,7 @@ class MainActivity : Activity() {
     private fun buildUi() {
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setBackgroundColor(BG)
+            background = AuroraDrawable()
             setOnApplyWindowInsetsListener { v, insets ->
                 @Suppress("DEPRECATION")
                 v.setPadding(0, insets.systemWindowInsetTop, 0, insets.systemWindowInsetBottom)
@@ -126,7 +149,7 @@ class MainActivity : Activity() {
             textSize = 15f
             setTextColor(FG)
             setHintTextColor(DIM)
-            hint = "Ghosium Search ili URL"
+            hint = "⌕  Ghosium Search ili URL"
             background = shape()
             setPadding(dp(15), 0, dp(15), 0)
             setSelectAllOnFocus(true)
@@ -151,10 +174,13 @@ class MainActivity : Activity() {
             visibility = View.INVISIBLE
         }
         root.addView(progress, LinearLayout.LayoutParams(-1, dp(3)))
-        content = FrameLayout(this).apply { setBackgroundColor(BG) }
+        content = FrameLayout(this)
         root.addView(content, LinearLayout.LayoutParams(-1, 0, 1f))
 
-        val bottom = LinearLayout(this).apply { setPadding(dp(7), dp(8), dp(7), dp(12)) }
+        val bottom = LinearLayout(this).apply {
+            setPadding(dp(7), dp(8), dp(7), dp(12))
+            background = shape(0xEE0B1625.toInt(), 29)
+        }
         fun add(view: TextView) {
             bottom.addView(view, LinearLayout.LayoutParams(0, dp(51), 1f).apply {
                 marginStart = dp(3)
@@ -241,6 +267,12 @@ class MainActivity : Activity() {
                 }
             }
 
+            override fun onReceivedError(view: WebView, request: WebResourceRequest, error: WebResourceError) {
+                if (request.isForMainFrame && active() === tab && panel == null) {
+                    message("Stranica se nije uspjela učitati. Provjeri mrežu i adresu.")
+                }
+            }
+
             override fun onReceivedSslError(view: WebView, handler: SslErrorHandler, error: SslError) {
                 handler.cancel()
                 if (active() === tab) message("SSL certifikat nije valjan")
@@ -280,6 +312,29 @@ class MainActivity : Activity() {
                 }
             }
             override fun onPermissionRequest(request: PermissionRequest) { request.deny() }
+            override fun onShowFileChooser(
+                webView: WebView,
+                callback: ValueCallback<Array<Uri>>,
+                params: FileChooserParams
+            ): Boolean {
+                fileSelection?.onReceiveValue(null)
+                fileSelection = callback
+                val chooser = Intent(Intent.ACTION_GET_CONTENT).apply {
+                    addCategory(Intent.CATEGORY_OPENABLE)
+                    type = "*/*"
+                    putExtra(Intent.EXTRA_ALLOW_MULTIPLE,
+                        params.mode == FileChooserParams.MODE_OPEN_MULTIPLE)
+                }
+                return try {
+                    @Suppress("DEPRECATION")
+                    startActivityForResult(Intent.createChooser(chooser, "Odaberi datoteku"), 2093)
+                    true
+                } catch (_: Exception) {
+                    fileSelection = null
+                    callback.onReceiveValue(null)
+                    false
+                }
+            }
         }
         web.setDownloadListener(DownloadListener { url, userAgent, disposition, mime, _ ->
             if (!url.startsWith("https://")) { message("Preuzimanje zahtijeva HTTPS"); return@DownloadListener }
@@ -292,7 +347,10 @@ class MainActivity : Activity() {
                     userAgent?.let { addRequestHeader("User-Agent", it) }
                     CookieManager.getInstance().getCookie(url)?.let { addRequestHeader("Cookie", it) }
                 }
-                (getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager).enqueue(request)
+                val id = (getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager).enqueue(request)
+                val prefs = getSharedPreferences("ghosium_downloads", Context.MODE_PRIVATE)
+                val ids = (prefs.getString("ids", "") ?: "").split(',').mapNotNull { it.toLongOrNull() }.takeLast(49)
+                prefs.edit().putString("ids", (ids + id).joinToString(",")).apply()
                 message("Preuzimanje je započelo")
             } catch (_: Exception) {
                 message("Preuzimanje nije uspjelo")
@@ -302,6 +360,7 @@ class MainActivity : Activity() {
 
     private fun showTab(index: Int) {
         if (index !in tabs.indices) return
+        panel = null
         active()?.web?.onPause()
         selected = index
         val tab = tabs[index]
@@ -318,58 +377,61 @@ class MainActivity : Activity() {
         updateButtons()
     }
 
-    private fun homeView(): View {
-        val scroll = ScrollView(this)
-        val column = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(dp(24), dp(35), dp(24), dp(25))
+    private fun homeView(): View = screens.home(
+        onQuery = { navigate(it) },
+        onHome = { showHome() },
+        onMarks = { showItems("Oznake", store.bookmarks) },
+        onDownloads = { showDownloads() },
+        onSettings = { showPrivacySettings() },
+        onHistory = { showItems("Povijest", store.history) },
+        onTabs = { showTabs() }
+    )
+
+    private fun showPanel(name: String, view: View) {
+        panel = name
+        active()?.web?.onPause()
+        content.removeAllViews()
+        (view.parent as? ViewGroup)?.removeView(view)
+        content.addView(view, FrameLayout.LayoutParams(-1, -1))
+        progress.visibility = View.INVISIBLE
+    }
+
+    private fun showWelcome() = showPanel("welcome", screens.welcome {
+        settingsPrefs.edit().putBoolean("introduced", true).apply()
+        showTab(selected)
+    })
+
+    private fun showSearch() = showPanel("search", screens.search(
+        store.history.toList(), address.text.toString()) { navigate(it) }
+    )
+
+    private fun showDownloads() {
+        val prefs = getSharedPreferences("ghosium_downloads", Context.MODE_PRIVATE)
+        val ids = (prefs.getString("ids", "") ?: "").split(',').mapNotNull { it.toLongOrNull() }.takeLast(30)
+        val manager = getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
+        val records = mutableListOf<GhosiumScreens.DownloadRow>()
+        for (id in ids.reversed()) {
+            try {
+                manager.query(DownloadManager.Query().setFilterById(id))?.use { cursor ->
+                    if (cursor.moveToFirst()) {
+                        val name = cursor.getString(cursor.getColumnIndexOrThrow(DownloadManager.COLUMN_TITLE))
+                        val status = cursor.getInt(cursor.getColumnIndexOrThrow(DownloadManager.COLUMN_STATUS))
+                        val state = when(status) {
+                            DownloadManager.STATUS_SUCCESSFUL -> "Završeno"
+                            DownloadManager.STATUS_FAILED -> "Neuspješno"
+                            DownloadManager.STATUS_RUNNING -> "Preuzimanje u tijeku"
+                            DownloadManager.STATUS_PAUSED -> "Pauzirano"
+                            else -> "Na čekanju"
+                        }
+                        records.add(GhosiumScreens.DownloadRow(name ?: "Datoteka", state))
+                    }
+                }
+            } catch (_: RuntimeException) { }
         }
-        scroll.addView(column)
-        column.addView(ImageView(this).apply {
-            setImageResource(R.drawable.ic_ghosium)
-            scaleType = ImageView.ScaleType.FIT_CENTER
-            contentDescription = "Ghosium logotip"
-        }, LinearLayout.LayoutParams(-1, dp(160)))
-        column.addView(text("GHOSIUM", 32f, FG, true).apply { gravity = Gravity.CENTER })
-        column.addView(text("Internet po tvojim pravilima.", 14f, DIM).apply {
-            gravity = Gravity.CENTER
-            setPadding(0, dp(10), 0, dp(35))
+        showPanel("downloads", screens.downloads(records) {
+            try { startActivity(Intent(DownloadManager.ACTION_VIEW_DOWNLOADS)) }
+            catch (_: Exception) { message("Preuzimanja nisu dostupna") }
         })
-        val quick = EditText(this).apply {
-            setSingleLine(true)
-            hint = "Ghosium Search ili URL"
-            setTextColor(FG)
-            setHintTextColor(DIM)
-            background = shape()
-            setPadding(dp(16), 0, dp(16), 0)
-            imeOptions = EditorInfo.IME_ACTION_SEARCH
-            setOnEditorActionListener { _, id, _ ->
-                if (id == EditorInfo.IME_ACTION_SEARCH) { navigate(text.toString()); true } else false
-            }
-        }
-        column.addView(quick, LinearLayout.LayoutParams(-1, dp(56)))
-        column.addView(text("Rezultate pretraživanja pruža DuckDuckGo", 12f, DIM).apply {
-            gravity = Gravity.CENTER
-            setPadding(0, dp(14), 0, 0)
-        })
-        column.addView(text("BRZE POVEZNICE", 12f, DIM, true).apply {
-            setPadding(0, dp(35), 0, dp(14))
-        })
-        listOf(
-            "Wikipedia" to "https://hr.wikipedia.org",
-            "Android Developers" to "https://developer.android.com",
-            "MDN Web Docs" to "https://developer.mozilla.org"
-        ).forEach { (name, url) ->
-            val tile = text("↗    " + name, 16f, FG, true).apply {
-                background = shape()
-                setPadding(dp(17), 0, 0, 0)
-                setOnClickListener { load(url) }
-            }
-            column.addView(tile, LinearLayout.LayoutParams(-1, dp(53)).apply {
-                bottomMargin = dp(10)
-            })
-        }
-        return scroll
     }
 
     private fun showHome() {
@@ -387,7 +449,7 @@ class MainActivity : Activity() {
     private fun load(url: String) {
         if (!url.startsWith("https://")) return
         val tab = active() ?: return
-        if (tab.home) { tab.home = false; showTab(selected) }
+        if (tab.home || panel != null) { tab.home = false; showTab(selected) }
         tab.url = url
         address.setText(url)
         tab.web.loadUrl(url)
@@ -412,32 +474,38 @@ class MainActivity : Activity() {
     }
 
     private fun showTabs() {
-        val labels = tabs.mapIndexed { index, tab ->
-            (index + 1).toString() + ". " + tab.title.take(65)
-        }.toTypedArray()
-        AlertDialog.Builder(this).setTitle("Kartice")
-            .setItems(labels) { _, index -> showTab(index) }
-            .setPositiveButton("Nova") { _, _ -> createTab() }
-            .setNeutralButton("Zatvori trenutnu") { _, _ -> closeTab() }
-            .setNegativeButton("Zatvori", null).show()
+        val entries = tabs.mapIndexed { i, tab ->
+            GhosiumScreens.TabRow(tab.title, tab.url, i == selected)
+        }
+        showPanel("tabs", screens.tabs(entries,
+            onOpen = { showTab(it) },
+            onClose = { closeTabAt(it) },
+            onNew = { createTab() }))
     }
 
-    private fun closeTab() {
-        val index = selected
+    private fun closeTabAt(index: Int) {
         if (index !in tabs.indices) return
         val tab = tabs.removeAt(index)
         (tab.web.parent as? ViewGroup)?.removeView(tab.web)
         tab.web.stopLoading()
         tab.web.destroy()
-        selected = -1
-        if (tabs.isEmpty()) createTab()
-        else showTab(index.coerceAtMost(tabs.lastIndex))
+        if (tabs.isEmpty()) {
+            selected = -1
+            createTab()
+        } else {
+            val next = TabSelection.afterClose(selected, index, tabs.size)
+            selected = -1
+            showTab(next.coerceIn(0, tabs.lastIndex))
+            showTabs()
+        }
     }
+
+    private fun closeTab() = closeTabAt(selected)
 
     private fun showMenu() {
         val popup = PopupMenu(this, menuButton)
         listOf("Nova kartica", "Kartice", "Oznake", "Povijest", "Preuzimanja",
-            "Postavke privatnosti", "Obriši podatke", "O Ghosiumu").forEachIndexed { idx, name ->
+            "Pretraživanje", "Postavke privatnosti", "Obriši podatke", "O Ghosiumu").forEachIndexed { idx, name ->
             popup.menu.add(0, idx, idx, name)
         }
         popup.setOnMenuItemClickListener { item ->
@@ -446,13 +514,12 @@ class MainActivity : Activity() {
                 1 -> showTabs()
                 2 -> showItems("Oznake", store.bookmarks)
                 3 -> showItems("Povijest", store.history)
-                4 -> try {
-                    startActivity(Intent(DownloadManager.ACTION_VIEW_DOWNLOADS))
-                } catch (_: Exception) { message("Preuzimanja nisu dostupna") }
-                5 -> showPrivacySettings()
-                6 -> clearData()
-                7 -> AlertDialog.Builder(this).setTitle("Ghosium Browser")
-                    .setMessage("Android 0.1.1 — Brendigo.\n" +
+                4 -> showDownloads()
+                5 -> showSearch()
+                6 -> showPrivacySettings()
+                7 -> clearData()
+                8 -> AlertDialog.Builder(this).setTitle("Ghosium Browser")
+                    .setMessage("Android 0.1.2 — Brendigo.\n" +
                         "Koristi Android System WebView. Nema anonimnog načina ni ugrađenog blokiranja oglasa.")
                     .setPositiveButton("U redu", null).show()
             }
@@ -464,47 +531,34 @@ class MainActivity : Activity() {
     private fun showPrivacySettings() {
         val js = settingsPrefs.getBoolean("javascript", true)
         val cookies = settingsPrefs.getBoolean("cookies", true)
-        val items = arrayOf(
-            "JavaScript: " + if (js) "uključen" else "isključen",
-            "Kolačići: " + if (cookies) "dopušteni" else "blokirani",
-            "Tražilica: DuckDuckGo",
-            "Obriši podatke pregledavanja"
-        )
-        AlertDialog.Builder(this).setTitle("Ghosium • Privatnost")
-            .setItems(items) { _, index ->
-                when (index) {
-                    0 -> {
-                        val enabled = !js
-                        settingsPrefs.edit().putBoolean("javascript", enabled).apply()
-                        tabs.forEach { it.web.settings.javaScriptEnabled = enabled }
-                        message(if (enabled) "JavaScript uključen" else "JavaScript isključen")
-                    }
-                    1 -> {
-                        val enabled = !cookies
-                        settingsPrefs.edit().putBoolean("cookies", enabled).apply()
-                        CookieManager.getInstance().setAcceptCookie(enabled)
-                        if (!enabled) {
-                            CookieManager.getInstance().removeAllCookies {
-                                CookieManager.getInstance().flush()
-                            }
-                        }
-                        message(if (enabled) "Kolačići dopušteni" else "Kolačići blokirani")
-                    }
-                    2 -> AlertDialog.Builder(this).setTitle("Tražilica")
-                        .setMessage("Ghosium Search služi za unos upita. Rezultate prikazuje DuckDuckGo unutar preglednika. Oznake pružatelja pretrage ostaju dio sadržaja web-stranice.")
-                        .setPositiveButton("U redu", null).show()
-                    3 -> clearData()
+        showPanel("settings", screens.settings(js,cookies,
+            onJs = {enabled ->
+                settingsPrefs.edit().putBoolean("javascript",enabled).apply()
+                tabs.forEach { it.web.settings.javaScriptEnabled = enabled }
+                message(if(enabled) "JavaScript uključen" else "JavaScript isključen")
+            },
+            onCookies = {enabled ->
+                settingsPrefs.edit().putBoolean("cookies",enabled).apply()
+                CookieManager.getInstance().setAcceptCookie(enabled)
+                if(!enabled) CookieManager.getInstance().removeAllCookies {
+                    CookieManager.getInstance().flush()
                 }
-            }.setNegativeButton("Zatvori", null).show()
+                message(if(enabled) "Kolačići dopušteni" else "Kolačići blokirani")
+            },
+            onClear = { clearData() },
+            onInfo = { showPanel("info",screens.information()) }
+        ))
     }
 
     private fun showItems(title: String, items: List<BrowserStore.Item>) {
-        if (items.isEmpty()) { message("Nema spremljenih stavki"); return }
-        val copy = items.toList()
-        val labels = copy.map { it.title + "\n" + it.url }.toTypedArray()
-        AlertDialog.Builder(this).setTitle(title)
-            .setItems(labels) { _, i -> load(copy[i].url) }
-            .setNegativeButton("Zatvori", null).show()
+        showPanel(title, screens.collection(title,items.toList(),
+            onOpen = { load(it) },
+            onDelete = { item ->
+                if (title == "Oznake") store.toggleBookmark(item.title,item.url)
+                else store.removeHistory(item.url)
+                showItems(title,if(title=="Oznake")store.bookmarks else store.history)
+            }
+        ))
     }
 
     private fun clearData() {
@@ -535,6 +589,7 @@ class MainActivity : Activity() {
 
     @Deprecated("Android navigation callback")
     override fun onBackPressed() {
+        if (panel != null) { showTab(selected); return }
         val tab = active()
         if (tab != null && tab.web.canGoBack()) tab.web.goBack()
         else if (tabs.size > 1) closeTab()
@@ -542,8 +597,24 @@ class MainActivity : Activity() {
     }
 
     override fun onPause() { active()?.web?.onPause(); super.onPause() }
-    override fun onResume() { super.onResume(); if (active()?.home == false) active()?.web?.onResume() }
+    override fun onResume() { super.onResume(); if (panel == null && active()?.home == false) active()?.web?.onResume() }
+    @Deprecated("System file picker API")
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == 2093) {
+            val selectedFiles = if (resultCode == Activity.RESULT_OK) {
+                data?.clipData?.let { clip ->
+                    Array(clip.itemCount) { i -> clip.getItemAt(i).uri }
+                } ?: data?.data?.let { arrayOf(it) }
+            } else null
+            fileSelection?.onReceiveValue(selectedFiles)
+            fileSelection = null
+        }
+    }
+
     override fun onDestroy() {
+        fileSelection?.onReceiveValue(null)
+        fileSelection = null
         tabs.forEach {
             (it.web.parent as? ViewGroup)?.removeView(it.web)
             it.web.destroy()

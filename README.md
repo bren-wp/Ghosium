@@ -37,3 +37,10 @@ For each new version, update `VERSION`, `versionCode`, `versionName` and `docs/r
 **Signing:** Without repository secrets `GHOSIUM_KEYSTORE_BASE64`, `GHOSIUM_KEYSTORE_PASSWORD`, `GHOSIUM_KEY_ALIAS`, and `GHOSIUM_KEY_PASSWORD`, the workflow labels the APK **debug** (development/test only) and AAB **unsigned** (not Play-ready). After secrets are configured, Android Gradle signs the release APK and release AAB using Ghosium's upload key. Never commit the keystore or passwords.
 
 The release workflow only runs for a successfully tested `main` commit; all releases are prereleases pending device, security, and store-readiness QA.
+
+## Android v0.1.2 — Ghosium native visual system
+Implemented original native Android Views for Welcome, Home, Ghosium Search, Tabs, Bookmarks, History, Downloads, Settings and Security information. The browser chrome and Ghosium ghost/compass launcher art are native. Aurora backgrounds are drawn using Android Canvas (not whole-screen static screenshots), and content is scrollable on smaller phones.
+
+Functional navigation includes actual WebView navigation, bookmark management, URL validation, tab switching and closing, individual history deletion, system file picker for website uploads, DownloadManager download status, and JavaScript/cookie toggles. Tab URLs reload after Activity recreation. DuckDuckGo still provides the external web search results page, inside Ghosium chrome.
+
+**Scope truth:** The provided concept screenshots remain design targets, and there has not yet been a visual pixel-diff review on Android emulators across density/font scales. No full incognito profile, proprietary search engine, or complete anti-tracking engine is claimed. Android CI validates compilation, basic unit tests and AAB construction, not a complete mobile QA certification. For signed Play-ready APK/AAB, configure the Ghosium upload keystore as repository secrets, never commit it.
