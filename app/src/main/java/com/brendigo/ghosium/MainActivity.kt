@@ -28,6 +28,7 @@ import android.webkit.URLUtil
 import android.webkit.WebChromeClient
 import android.webkit.ValueCallback
 import android.webkit.WebResourceRequest
+import android.webkit.WebResourceError
 import android.webkit.WebSettings
 import android.webkit.WebStorage
 import android.webkit.WebView
@@ -104,7 +105,11 @@ class MainActivity : Activity() {
     private fun dp(value: Int): Int = (value * resources.displayMetrics.density + 0.5f).toInt()
 
     private fun shape(color: Int = PANEL, radius: Int = 18): GradientDrawable =
-        GradientDrawable().apply { setColor(color); cornerRadius = dp(radius).toFloat() }
+        GradientDrawable().apply {
+            setColor(color)
+            cornerRadius = dp(radius).toFloat()
+            setStroke(dp(1), 0xFF30405B.toInt())
+        }
 
     private fun text(value: String, size: Float, color: Int = FG, heavy: Boolean = false): TextView =
         TextView(this).apply {
@@ -172,7 +177,10 @@ class MainActivity : Activity() {
         content = FrameLayout(this)
         root.addView(content, LinearLayout.LayoutParams(-1, 0, 1f))
 
-        val bottom = LinearLayout(this).apply { setPadding(dp(7), dp(8), dp(7), dp(12)) }
+        val bottom = LinearLayout(this).apply {
+            setPadding(dp(7), dp(8), dp(7), dp(12))
+            background = shape(0xEE0B1625.toInt(), 29)
+        }
         fun add(view: TextView) {
             bottom.addView(view, LinearLayout.LayoutParams(0, dp(51), 1f).apply {
                 marginStart = dp(3)
@@ -256,6 +264,12 @@ class MainActivity : Activity() {
                     progress.visibility = View.INVISIBLE
                     address.setText(tab.url)
                     updateButtons()
+                }
+            }
+
+            override fun onReceivedError(view: WebView, request: WebResourceRequest, error: WebResourceError) {
+                if (request.isForMainFrame && active() === tab && panel == null) {
+                    message("Stranica se nije uspjela učitati. Provjeri mrežu i adresu.")
                 }
             }
 
