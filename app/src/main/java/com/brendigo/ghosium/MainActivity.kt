@@ -524,7 +524,9 @@ class MainActivity : Activity() {
     private fun showMenu() {
         val popup = PopupMenu(this, menuButton)
         listOf("Nova kartica", "Kartice", "Oznake", "Povijest", "Preuzimanja",
-            "Pretraživanje", "Postavke privatnosti", "Obriši podatke", "O Ghosiumu").forEachIndexed { idx, name ->
+            "Pretraživanje", "Dodaj ili ukloni oznaku", "Osvježi stranicu",
+            "Pronađi na stranici", "Kopiraj URL", "Podijeli poveznicu",
+            "Postavke privatnosti", "Obriši podatke", "O Ghosiumu").forEachIndexed { idx, name ->
             popup.menu.add(0, idx, idx, name)
         }
         popup.setOnMenuItemClickListener { item ->
@@ -535,16 +537,81 @@ class MainActivity : Activity() {
                 3 -> showItems("Povijest", store.history)
                 4 -> showDownloads()
                 5 -> showSearch()
-                6 -> showPrivacySettings()
-                7 -> clearData()
-                8 -> AlertDialog.Builder(this).setTitle("Ghosium Browser")
-                    .setMessage("Android 0.1.2 — Brendigo.\n" +
+                6 -> toggleBookmark()
+                7 -> active()?.let { if (!it.home && panel == null) it.web.reload() else message("Najprije otvori stranicu") }
+                8 -> findInPage()
+                9 -> copyPageUrl()
+                10 -> sharePageUrl()
+                11 -> showPrivacySettings()
+                12 -> clearData()
+                13 -> AlertDialog.Builder(this).setTitle("Ghosium Browser")
+                    .setMessage("Android 0.1.3 — Brendigo.\n" +
                         "Koristi Android System WebView. Nema anonimnog načina ni ugrađenog blokiranja oglasa.")
                     .setPositiveButton("U redu", null).show()
             }
             true
         }
         popup.show()
+    }
+
+    private fun currentHttps(): String? = active()?.takeIf { !it.home }
+        ?.url?.takeIf { UrlResolver.resolve(it) == it }
+
+    private fun copyPageUrl() {
+        val url = currentHttps()
+        if (url == null) { message("Najprije otvori HTTPS stranicu"); return }
+        val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+        clipboard.setPrimaryClip(ClipData.newPlainText("Ghosium URL", url))
+        message("Poveznica je kopirana")
+    }
+
+    private fun sharePageUrl() {
+        val url = currentHttps()
+        if (url == null) { message("Najprije otvori HTTPS stranicu"); return }
+        val send = Intent(Intent.ACTION_SEND).apply {
+            type = "text/plain"
+            putExtra(Intent.EXTRA_TEXT, url)
+        }
+        try { startActivity(Intent.createChooser(send, "Podijeli poveznicu")) }
+        catch (_: Exception) { message("Dijeljenje nije dostupno") }
+    }
+
+    private fun findInPage() {
+        val tab = active()
+        if (tab == null || tab.home || panel != null) {
+            message("Najprije otvori web-stranicu")
+            return
+        }
+        val query = EditText(this).apply {
+            setSingleLine(true)
+            hint = "Pronađi tekst"
+            setTextColor(FG)
+            setHintTextColor(DIM)
+            inputType = android.text.InputType.TYPE_CLASS_TEXT
+            setPadding(dp(20), dp(12), dp(20), dp(12))
+        }
+        val dialog = AlertDialog.Builder(this)
+            .setTitle("Pronađi na stranici")
+            .setView(query)
+            .setPositiveButton("Sljedeće", null)
+            .setNegativeButton("Zatvori", null).create()
+        query.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
+                if (s.isNullOrEmpty()) tab.web.clearMatches()
+                else tab.web.findAllAsync(s.toString())
+            }
+            override fun afterTextChanged(s: Editable?) {}
+        })
+        dialog.setOnShowListener {
+            dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+                if (query.text.isNotBlank()) tab.web.findNext(true)
+            }
+        }
+        dialog.setOnDismissListener {
+            if (tabs.contains(tab)) tab.web.clearMatches()
+        }
+        dialog.show()
     }
 
     private fun showPrivacySettings() {
