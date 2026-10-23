@@ -31,4 +31,7 @@ class BrowserDestinationTest {
         assertEquals(BrowserDestination.Invalid,
             BrowserDestination.fromInput("https://test:pw@example.com"))
     }
+    @Test fun customPortOpensPage() { assertEquals(BrowserDestination.Page("https://example.com:8443"), BrowserDestination.fromInput("example.com:8443")) }
+    @Test fun mailtoCannotLaunch() { assertEquals(BrowserDestination.Invalid, BrowserDestination.fromInput("mailto:someone@example.com")) }
+
 }
