@@ -82,7 +82,15 @@ class MainActivity : Activity() {
         store = BrowserStore(this)
         CookieManager.getInstance().setAcceptCookie(settingsPrefs.getBoolean("cookies", true))
         buildUi()
-        createTab()
+        val restoredUrls = savedInstanceState?.getStringArrayList("ghosium_urls")
+        val restoredHomes = savedInstanceState?.getBooleanArray("ghosium_homes")
+        if (!restoredUrls.isNullOrEmpty() && restoredHomes != null && restoredUrls.size == restoredHomes.size) {
+            restoredUrls.take(MAX_TABS).forEachIndexed { idx, url ->
+                createTab()
+                if (!restoredHomes[idx] && url.startsWith("https://")) load(url)
+            }
+            if (tabs.isNotEmpty()) showTab(savedInstanceState.getInt("ghosium_selected", 0).coerceIn(0,tabs.lastIndex))
+        } else createTab()
         if (!settingsPrefs.getBoolean("introduced", false)) showWelcome()
     }
 
@@ -304,7 +312,7 @@ class MainActivity : Activity() {
                 }
                 val id = (getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager).enqueue(request)
                 val prefs = getSharedPreferences("ghosium_downloads", Context.MODE_PRIVATE)
-                val ids = (prefs.getString("ids", "") ?: "").split(\",\").mapNotNull { it.toLongOrNull() }.takeLast(49)
+                val ids = (prefs.getString("ids", "") ?: "").split(',').mapNotNull { it.toLongOrNull() }.takeLast(49)
                 prefs.edit().putString("ids", (ids + id).joinToString(",")).apply()
                 message("Preuzimanje je započelo")
             } catch (_: Exception) {
@@ -463,7 +471,7 @@ class MainActivity : Activity() {
     private fun showMenu() {
         val popup = PopupMenu(this, menuButton)
         listOf("Nova kartica", "Kartice", "Oznake", "Povijest", "Preuzimanja",
-            "Postavke privatnosti", "Obriši podatke", "O Ghosiumu").forEachIndexed { idx, name ->
+            "Pretraživanje", "Postavke privatnosti", "Obriši podatke", "O Ghosiumu").forEachIndexed { idx, name ->
             popup.menu.add(0, idx, idx, name)
         }
         popup.setOnMenuItemClickListener { item ->
@@ -472,13 +480,12 @@ class MainActivity : Activity() {
                 1 -> showTabs()
                 2 -> showItems("Oznake", store.bookmarks)
                 3 -> showItems("Povijest", store.history)
-                4 -> try {
-                    startActivity(Intent(DownloadManager.ACTION_VIEW_DOWNLOADS))
-                } catch (_: Exception) { message("Preuzimanja nisu dostupna") }
-                5 -> showPrivacySettings()
-                6 -> clearData()
-                7 -> AlertDialog.Builder(this).setTitle("Ghosium Browser")
-                    .setMessage("Android 0.1.1 — Brendigo.\n" +
+                4 -> showDownloads()
+                5 -> showSearch()
+                6 -> showPrivacySettings()
+                7 -> clearData()
+                8 -> AlertDialog.Builder(this).setTitle("Ghosium Browser")
+                    .setMessage("Android 0.1.2 — Brendigo.\n" +
                         "Koristi Android System WebView. Nema anonimnog načina ni ugrađenog blokiranja oglasa.")
                     .setPositiveButton("U redu", null).show()
             }
@@ -556,7 +563,7 @@ class MainActivity : Activity() {
     }
 
     override fun onPause() { active()?.web?.onPause(); super.onPause() }
-    override fun onResume() { super.onResume(); if (active()?.home == false) active()?.web?.onResume() }
+    override fun onResume() { super.onResume(); if (panel == null && active()?.home == false) active()?.web?.onResume() }
     override fun onDestroy() {
         tabs.forEach {
             (it.web.parent as? ViewGroup)?.removeView(it.web)
