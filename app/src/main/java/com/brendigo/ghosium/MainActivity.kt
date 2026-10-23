@@ -259,11 +259,12 @@ class MainActivity : Activity() {
             }
 
             override fun onPageStarted(view: WebView, url: String?, favicon: android.graphics.Bitmap?) {
+                tab.navigationFailed = false
                 if (url?.startsWith("https://") == true) {
                     tab.url = url
                     tab.home = false
                 }
-                if (active() === tab) {
+                if (active() === tab && panel == null && !tab.home) {
                     address.setText(tab.url)
                     progress.progress = 5
                     progress.visibility = View.VISIBLE
@@ -271,13 +272,13 @@ class MainActivity : Activity() {
             }
 
             override fun onPageFinished(view: WebView, url: String?) {
-                if (url?.startsWith("https://") == true) {
+                if (!tab.navigationFailed && !tab.home && url?.startsWith("https://") == true) {
                     tab.url = url
                     tab.title = view.title?.take(150)?.ifBlank { Uri.parse(url).host ?: "Web-stranica" }
                         ?: (Uri.parse(url).host ?: "Web-stranica")
                     store.addHistory(tab.title, url)
                 }
-                if (active() === tab) {
+                if (active() === tab && panel == null && !tab.home) {
                     progress.visibility = View.INVISIBLE
                     address.setText(tab.url)
                     updateButtons()
@@ -285,12 +286,14 @@ class MainActivity : Activity() {
             }
 
             override fun onReceivedError(view: WebView, request: WebResourceRequest, error: WebResourceError) {
+                if (request.isForMainFrame) tab.navigationFailed = true
                 if (request.isForMainFrame && active() === tab && panel == null) {
                     message("Stranica se nije uspjela učitati. Provjeri mrežu i adresu.")
                 }
             }
 
             override fun onReceivedSslError(view: WebView, handler: SslErrorHandler, error: SslError) {
+                tab.navigationFailed = true
                 handler.cancel()
                 if (active() === tab) message("SSL certifikat nije valjan")
             }
@@ -299,6 +302,7 @@ class MainActivity : Activity() {
                 view: WebView, request: WebResourceRequest,
                 threatType: Int, callback: SafeBrowsingResponse
             ) {
+                tab.navigationFailed = true
                 callback.backToSafety(true)
                 if (active() === tab) message("Opasna web-stranica je blokirana")
             }
@@ -323,7 +327,7 @@ class MainActivity : Activity() {
         }
         web.webChromeClient = object : WebChromeClient() {
             override fun onProgressChanged(view: WebView, newProgress: Int) {
-                if (active() === tab && !tab.home) {
+                if (active() === tab && !tab.home && panel == null) {
                     progress.progress = newProgress
                     progress.visibility = if (newProgress == 100) View.INVISIBLE else View.VISIBLE
                 }
@@ -354,9 +358,9 @@ class MainActivity : Activity() {
             }
         }
         web.setDownloadListener(DownloadListener { url, userAgent, disposition, mime, _ ->
-            if (!url.startsWith("https://")) { message("Preuzimanje zahtijeva HTTPS"); return@DownloadListener }
+            if (UrlResolver.resolve(url) != url) { message("Preuzimanje zahtijeva valjani HTTPS URL"); return@DownloadListener }
             try {
-                val name = File(URLUtil.guessFileName(url, disposition, mime)).name.take(120)
+                val name = File(URLUtil.guessFileName(url, disposition, mime)).name.take(120).ifBlank { "ghosium-download" }
                 val request = DownloadManager.Request(Uri.parse(url)).apply {
                     setTitle(name)
                     setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, name)
@@ -482,7 +486,7 @@ class MainActivity : Activity() {
 
     private fun toggleBookmark() {
         val tab = active() ?: return
-        if (tab.home || tab.url.isBlank()) { message("Najprije otvori stranicu"); return }
+        if (tab.home || UrlResolver.resolve(tab.url) != tab.url) { message("Najprije otvori HTTPS stranicu"); return }
         val saved = store.toggleBookmark(tab.title, tab.url)
         message(if (saved) "Dodano u oznake" else "Uklonjeno iz oznaka")
         updateButtons()
