@@ -81,6 +81,8 @@ class MainActivity : ComponentActivity() {
     private lateinit var menuButton: TextView
     private val tabs = mutableListOf<Tab>()
     private val screens by lazy { GhosiumScreens(this) }
+    private val searchRepository by lazy { GhosiumSearchRepository() }
+    private var searchRequestId = 0
     private var panel: String? = null
     private var fileSelection: ValueCallback<Array<Uri>>? = null
     private val selectWebFiles = registerForActivityResult(
@@ -489,9 +491,33 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun navigate(raw: String) {
-        val url = UrlResolver.resolve(raw)
-        if (url == null) { message("Unesi valjanu HTTPS adresu ili upit"); return }
-        load(url)
+        when (val destination = BrowserDestination.fromInput(raw)) {
+            is BrowserDestination.Page -> load(destination.url)
+            is BrowserDestination.Search -> showResults(destination.query)
+            BrowserDestination.Invalid -> message("Unesi valjanu HTTPS adresu ili pojam za pretragu")
+        }
+    }
+
+    private fun showResults(rawQuery: String) {
+        val query = rawQuery.trim().take(200)
+        if (query.isEmpty()) return
+        val request = ++searchRequestId
+        fun present(items: List<GhosiumResult>, loading: Boolean, error: String?) {
+            showPanel("results", screens.searchResults(
+                query, items, loading, error,
+                onSearch = { navigate(it) },
+                onOpen = { load(it) }
+            ))
+        }
+        present(emptyList(), true, null)
+        searchRepository.search(query) { response ->
+            runOnUiThread {
+                if (!isDestroyed && panel == "results" && request == searchRequestId) {
+                    present(response.getOrDefault(emptyList()), false,
+                        response.exceptionOrNull()?.let { "Provjeri internetsku vezu i pokušaj ponovno" })
+                }
+            }
+        }
     }
 
     private fun load(url: String) {
@@ -708,6 +734,7 @@ class MainActivity : ComponentActivity() {
     override fun onDestroy() {
         fileSelection?.onReceiveValue(null)
         fileSelection = null
+        searchRepository.close()
         tabs.forEach {
             (it.web.parent as? ViewGroup)?.removeView(it.web)
             it.web.destroy()
