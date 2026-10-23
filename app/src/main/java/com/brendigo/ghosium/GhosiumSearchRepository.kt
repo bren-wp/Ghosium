@@ -19,9 +19,11 @@ class GhosiumSearchRepository {
     companion object {
         // Change only when a genuinely Brendigo-operated HTTPS SearXNG endpoint is deployed.
         // Do not use random public instances or put upstream API keys into the Android app.
-        const val WEB_SEARCH_BASE_URL = ""
+        val WEB_SEARCH_BASE_URL: String = BuildConfig.GHOSIUM_SEARCH_BASE_URL
     }
     private val executor = Executors.newFixedThreadPool(2)
+
+    fun close() { executor.shutdownNow() }
 
     fun search(query: String, callback: (Result<List<GhosiumResult>>) -> Unit) {
         val q = query.trim().take(200)
