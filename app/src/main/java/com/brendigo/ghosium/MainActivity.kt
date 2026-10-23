@@ -273,7 +273,7 @@ class MainActivity : Activity() {
 
             override fun onPageFinished(view: WebView, url: String?) {
                 if (!tabs.contains(tab)) return
-                if (BrowserPolicy.shouldRecordVisit(url, tab.home, tab.navigationFailed)) {
+                if (url != null && BrowserPolicy.shouldRecordVisit(url, tab.home, tab.navigationFailed)) {
                     tab.url = url
                     tab.title = view.title?.take(150)?.ifBlank { Uri.parse(url).host ?: "Web-stranica" }
                         ?: (Uri.parse(url).host ?: "Web-stranica")
