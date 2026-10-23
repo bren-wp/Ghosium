@@ -12,8 +12,8 @@ android {
         applicationId = "com.brendigo.ghosium"
         minSdk = 29
         targetSdk = 36
-        versionCode = 5
-        versionName = "0.1.4"
+        versionCode = 6
+        versionName = "0.1.5"
         val configuredUrl = providers.gradleProperty("GHOSIUM_SEARCH_BASE_URL")
             .orElse(providers.environmentVariable("GHOSIUM_SEARCH_BASE_URL")).orElse("").get()
         require(configuredUrl.isBlank() || (configuredUrl.startsWith("https://") && !configuredUrl.contains('"'))) {
