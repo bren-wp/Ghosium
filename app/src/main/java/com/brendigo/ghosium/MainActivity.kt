@@ -72,11 +72,13 @@ class MainActivity : Activity() {
     private lateinit var starButton: TextView
     private lateinit var menuButton: TextView
     private val tabs = mutableListOf<Tab>()
+    private val settingsPrefs by lazy { getSharedPreferences("ghosium_settings", Context.MODE_PRIVATE) }
     private var selected = -1
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         store = BrowserStore(this)
+        CookieManager.getInstance().setAcceptCookie(settingsPrefs.getBoolean("cookies", true))
         buildUi()
         createTab()
     }
@@ -124,7 +126,7 @@ class MainActivity : Activity() {
             textSize = 15f
             setTextColor(FG)
             setHintTextColor(DIM)
-            hint = "Pretraži ili upiši URL"
+            hint = "Ghosium Search ili URL"
             background = shape()
             setPadding(dp(15), 0, dp(15), 0)
             setSelectAllOnFocus(true)
@@ -189,7 +191,7 @@ class MainActivity : Activity() {
         val web = tab.web
         web.setBackgroundColor(Color.WHITE)
         web.settings.apply {
-            javaScriptEnabled = true
+            javaScriptEnabled = settingsPrefs.getBoolean("javascript", true)
             domStorageEnabled = true
             allowFileAccess = false
             allowContentAccess = false
@@ -328,14 +330,14 @@ class MainActivity : Activity() {
             scaleType = ImageView.ScaleType.FIT_CENTER
             contentDescription = "Ghosium logotip"
         }, LinearLayout.LayoutParams(-1, dp(160)))
-        column.addView(text("Ghosium", 32f, FG, true).apply { gravity = Gravity.CENTER })
+        column.addView(text("GHOSIUM", 32f, FG, true).apply { gravity = Gravity.CENTER })
         column.addView(text("Internet po tvojim pravilima.", 14f, DIM).apply {
             gravity = Gravity.CENTER
             setPadding(0, dp(10), 0, dp(35))
         })
         val quick = EditText(this).apply {
             setSingleLine(true)
-            hint = "Pretraži ili upiši URL"
+            hint = "Ghosium Search ili URL"
             setTextColor(FG)
             setHintTextColor(DIM)
             background = shape()
@@ -346,11 +348,14 @@ class MainActivity : Activity() {
             }
         }
         column.addView(quick, LinearLayout.LayoutParams(-1, dp(56)))
+        column.addView(text("Rezultate pretraživanja pruža DuckDuckGo", 12f, DIM).apply {
+            gravity = Gravity.CENTER
+            setPadding(0, dp(14), 0, 0)
+        })
         column.addView(text("BRZE POVEZNICE", 12f, DIM, true).apply {
             setPadding(0, dp(35), 0, dp(14))
         })
         listOf(
-            "DuckDuckGo" to "https://duckduckgo.com",
             "Wikipedia" to "https://hr.wikipedia.org",
             "Android Developers" to "https://developer.android.com",
             "MDN Web Docs" to "https://developer.mozilla.org"
@@ -432,7 +437,7 @@ class MainActivity : Activity() {
     private fun showMenu() {
         val popup = PopupMenu(this, menuButton)
         listOf("Nova kartica", "Kartice", "Oznake", "Povijest", "Preuzimanja",
-            "Obriši podatke", "O Ghosiumu").forEachIndexed { idx, name ->
+            "Postavke privatnosti", "Obriši podatke", "O Ghosiumu").forEachIndexed { idx, name ->
             popup.menu.add(0, idx, idx, name)
         }
         popup.setOnMenuItemClickListener { item ->
@@ -444,15 +449,53 @@ class MainActivity : Activity() {
                 4 -> try {
                     startActivity(Intent(DownloadManager.ACTION_VIEW_DOWNLOADS))
                 } catch (_: Exception) { message("Preuzimanja nisu dostupna") }
-                5 -> clearData()
-                6 -> AlertDialog.Builder(this).setTitle("Ghosium Browser")
-                    .setMessage("Android MVP 0.1.0 — Brendigo.\n" +
+                5 -> showPrivacySettings()
+                6 -> clearData()
+                7 -> AlertDialog.Builder(this).setTitle("Ghosium Browser")
+                    .setMessage("Android 0.1.1 — Brendigo.\n" +
                         "Koristi Android System WebView. Nema anonimnog načina ni ugrađenog blokiranja oglasa.")
                     .setPositiveButton("U redu", null).show()
             }
             true
         }
         popup.show()
+    }
+
+    private fun showPrivacySettings() {
+        val js = settingsPrefs.getBoolean("javascript", true)
+        val cookies = settingsPrefs.getBoolean("cookies", true)
+        val items = arrayOf(
+            "JavaScript: " + if (js) "uključen" else "isključen",
+            "Kolačići: " + if (cookies) "dopušteni" else "blokirani",
+            "Tražilica: DuckDuckGo",
+            "Obriši podatke pregledavanja"
+        )
+        AlertDialog.Builder(this).setTitle("Ghosium • Privatnost")
+            .setItems(items) { _, index ->
+                when (index) {
+                    0 -> {
+                        val enabled = !js
+                        settingsPrefs.edit().putBoolean("javascript", enabled).apply()
+                        tabs.forEach { it.web.settings.javaScriptEnabled = enabled }
+                        message(if (enabled) "JavaScript uključen" else "JavaScript isključen")
+                    }
+                    1 -> {
+                        val enabled = !cookies
+                        settingsPrefs.edit().putBoolean("cookies", enabled).apply()
+                        CookieManager.getInstance().setAcceptCookie(enabled)
+                        if (!enabled) {
+                            CookieManager.getInstance().removeAllCookies {
+                                CookieManager.getInstance().flush()
+                            }
+                        }
+                        message(if (enabled) "Kolačići dopušteni" else "Kolačići blokirani")
+                    }
+                    2 -> AlertDialog.Builder(this).setTitle("Tražilica")
+                        .setMessage("Ghosium Search služi za unos upita. Rezultate prikazuje DuckDuckGo unutar preglednika. Oznake pružatelja pretrage ostaju dio sadržaja web-stranice.")
+                        .setPositiveButton("U redu", null).show()
+                    3 -> clearData()
+                }
+            }.setNegativeButton("Zatvori", null).show()
     }
 
     private fun showItems(title: String, items: List<BrowserStore.Item>) {
