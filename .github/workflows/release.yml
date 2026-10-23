@@ -1,0 +1,121 @@
+name: Ghosium Release
+on:
+  workflow_run:
+    workflows: ["Android CI"]
+    types: [completed]
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    if: github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          fetch-depth: 0
+          persist-credentials: true
+      - name: Confirm tested main commit and new version
+        id: guard
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin main --prune
+          test "$(git rev-parse HEAD)" = "$(git rev-parse origin/main)"
+          version="$(cat VERSION)"
+          [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          grep -Fq "versionName = \"$version\"" app/build.gradle.kts
+          tag="v$version"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          if git ls-remote --exit-code --tags origin "refs/tags/$tag" >/dev/null 2>&1; then
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+            echo "Existing version tag: no duplicate release"
+          else
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/setup-java@v4
+        if: steps.guard.outputs.publish == 'true'
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        if: steps.guard.outputs.publish == 'true'
+        with:
+          gradle-version: '8.13'
+      - name: Install Android SDK
+        if: steps.guard.outputs.publish == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          SDKMANAGER="$ANDROID_HOME/cmdline-tools/16.0/bin/sdkmanager"
+          if [ ! -x "$SDKMANAGER" ]; then SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"; fi
+          test -x "$SDKMANAGER"
+          yes | "$SDKMANAGER" --licenses >/dev/null || true
+          "$SDKMANAGER" "platforms;android-36" "build-tools;36.0.0"
+      - name: Configure optional upload key
+        if: steps.guard.outputs.publish == 'true'
+        id: signing
+        env:
+          STORE_B64: ${{ secrets.GHOSIUM_KEYSTORE_BASE64 }}
+          STORE_PASS: ${{ secrets.GHOSIUM_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.GHOSIUM_KEY_ALIAS }}
+          KEY_PASS: ${{ secrets.GHOSIUM_KEY_PASSWORD }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "$STORE_B64$STORE_PASS$KEY_ALIAS$KEY_PASS" ]; then
+            echo "signed=false" >> "$GITHUB_OUTPUT"
+            echo "No signing secrets: debug APK and unsigned release AAB will be labelled explicitly"
+          else
+            test -n "$STORE_B64" && test -n "$STORE_PASS" && test -n "$KEY_ALIAS" && test -n "$KEY_PASS"
+            install -m 700 -d "$RUNNER_TEMP/ghosium-signing"
+            printf '%s' "$STORE_B64" | base64 --decode > "$RUNNER_TEMP/ghosium-signing/upload.jks"
+            chmod 600 "$RUNNER_TEMP/ghosium-signing/upload.jks"
+            echo "GHOSIUM_KEYSTORE_FILE=$RUNNER_TEMP/ghosium-signing/upload.jks" >> "$GITHUB_ENV"
+            echo "GHOSIUM_KEYSTORE_PASSWORD=$STORE_PASS" >> "$GITHUB_ENV"
+            echo "GHOSIUM_KEY_ALIAS=$KEY_ALIAS" >> "$GITHUB_ENV"
+            echo "GHOSIUM_KEY_PASSWORD=$KEY_PASS" >> "$GITHUB_ENV"
+            echo "signed=true" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Build, test and inspect APK/AAB
+        if: steps.guard.outputs.publish == 'true'
+        run: gradle --no-daemon :app:testDebugUnitTest :app:assembleDebug :app:assembleRelease :app:bundleRelease
+      - name: Package release files
+        if: steps.guard.outputs.publish == 'true'
+        env:
+          TAG: ${{ steps.guard.outputs.tag }}
+          SIGNED: ${{ steps.signing.outputs.signed }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          if [ "$SIGNED" = "true" ]; then
+            cp app/build/outputs/apk/release/app-release.apk "dist/Ghosium-$TAG-release-signed.apk"
+            cp app/build/outputs/bundle/release/app-release.aab "dist/Ghosium-$TAG-release-signed.aab"
+          else
+            cp app/build/outputs/apk/debug/app-debug.apk "dist/Ghosium-$TAG-debug.apk"
+            cp app/build/outputs/bundle/release/app-release.aab "dist/Ghosium-$TAG-release-unsigned.aab"
+          fi
+          (cd dist && sha256sum *.apk *.aab > SHA256SUMS.txt)
+          ls -lh dist
+      - name: Publish verified GitHub release
+        if: steps.guard.outputs.publish == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.guard.outputs.tag }}
+          SIGNED: ${{ steps.signing.outputs.signed }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          notes="docs/releases/$TAG.md"
+          test -f "$notes"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "$TAG" -m "Ghosium Browser $TAG"
+          git push origin "$TAG"
+          gh release create "$TAG" dist/* --verify-tag --title "Ghosium Browser $TAG" --notes-file "$notes" --prerelease
