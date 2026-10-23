@@ -4,6 +4,8 @@ import android.app.Activity
 import android.app.AlertDialog
 import android.app.DownloadManager
 import android.content.Context
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.Intent
 import android.content.res.ColorStateList
 import android.graphics.Color
@@ -34,6 +36,8 @@ import android.webkit.WebStorage
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.EditText
+import android.text.Editable
+import android.text.TextWatcher
 import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.PopupMenu
@@ -61,15 +65,16 @@ class MainActivity : Activity() {
         val web: WebView,
         var title: String = "Nova kartica",
         var url: String = "",
-        var home: Boolean = true
+        var home: Boolean = true,
+        var navigationFailed: Boolean = false
     )
 
     private lateinit var store: BrowserStore
     private lateinit var address: EditText
     private lateinit var content: FrameLayout
+    private lateinit var topBar: LinearLayout
     private lateinit var progress: ProgressBar
     private lateinit var tabButton: TextView
-    private lateinit var starButton: TextView
     private lateinit var menuButton: TextView
     private val tabs = mutableListOf<Tab>()
     private val screens by lazy { GhosiumScreens(this) }
@@ -165,6 +170,7 @@ class MainActivity : Activity() {
         })
         top.addView(action("↗", "Otvori adresu") { navigate(address.text.toString()) },
             LinearLayout.LayoutParams(dp(48), dp(50)))
+        topBar = top
         root.addView(top)
 
         progress = ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal).apply {
